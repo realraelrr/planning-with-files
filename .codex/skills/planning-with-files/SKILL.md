@@ -1,23 +1,23 @@
 ---
 name: planning-with-files
-description: Implements Manus-style file-based planning to organize and track progress on complex tasks. Creates task_plan.md, findings.md, and progress.md. Use when asked to plan out, break down, or organize a multi-step project, research task, or any work requiring 5+ tool calls. Supports automatic session recovery after /clear.
+description: Implements Manus-style file-based planning to organize and track progress on complex tasks. Creates .state/task_plan.md, .state/findings.md, and .state/progress.md. Use when asked to plan out, break down, or organize a multi-step project, research task, or any work requiring 5+ tool calls. Supports automatic session recovery after /clear.
 user-invocable: true
 allowed-tools: "Read Write Edit Bash Glob Grep"
 hooks:
   UserPromptSubmit:
     - hooks:
         - type: command
-          command: "if [ -f task_plan.md ]; then echo '[planning-with-files] ACTIVE PLAN — current state:'; head -50 task_plan.md; echo ''; echo '=== recent progress ==='; tail -20 progress.md 2>/dev/null; echo ''; echo '[planning-with-files] Read findings.md for research context. Continue from the current phase.'; fi"
+          command: "if [ -f .state/task_plan.md ]; then echo '[planning-with-files] ACTIVE PLAN — current state:'; head -50 .state/task_plan.md; echo ''; echo '=== recent progress ==='; tail -20 .state/progress.md 2>/dev/null; echo ''; echo '[planning-with-files] Read .state/findings.md for research context. Continue from the current phase.'; fi"
   PreToolUse:
     - matcher: "Write|Edit|Bash|Read|Glob|Grep"
       hooks:
         - type: command
-          command: "cat task_plan.md 2>/dev/null | head -30 || true"
+          command: "cat .state/task_plan.md 2>/dev/null | head -30 || true"
   PostToolUse:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "if [ -f task_plan.md ]; then echo '[planning-with-files] Update progress.md with what you just did. If a phase is now complete, update task_plan.md status.'; fi"
+          command: "if [ -f .state/task_plan.md ]; then echo '[planning-with-files] Update .state/progress.md with what you just did. If a phase is now complete, update .state/task_plan.md status.'; fi"
   Stop:
     - hooks:
         - type: command
@@ -54,24 +54,24 @@ If catchup report shows unsynced context:
 ## Important: Where Files Go
 
 - **Templates** are in `~/.codex/skills/planning-with-files/templates/`
-- **Your planning files** go in **your project directory**
+- **Your planning files** go in **your project's `.state/` directory**
 
 | Location | What Goes There |
 |----------|-----------------|
 | Skill directory (`~/.codex/skills/planning-with-files/`) | Templates, scripts, reference docs |
-| Your project directory | `task_plan.md`, `findings.md`, `progress.md` |
+| Your project's `.state/` directory | `.state/task_plan.md`, `.state/findings.md`, `.state/progress.md` |
 
 ## Quick Start
 
 Before ANY complex task:
 
-1. **Create `task_plan.md`** — Use [templates/task_plan.md](templates/task_plan.md) as reference
-2. **Create `findings.md`** — Use [templates/findings.md](templates/findings.md) as reference
-3. **Create `progress.md`** — Use [templates/progress.md](templates/progress.md) as reference
+1. **Create `.state/task_plan.md`** — Use [templates/task_plan.md](templates/task_plan.md) as reference
+2. **Create `.state/findings.md`** — Use [templates/findings.md](templates/findings.md) as reference
+3. **Create `.state/progress.md`** — Use [templates/progress.md](templates/progress.md) as reference
 4. **Re-read plan before decisions** — Refreshes goals in attention window
 5. **Update after each phase** — Mark complete, log errors
 
-> **Note:** Planning files go in your project root, not the skill installation folder.
+> **Note:** Planning files go in your project's `.state/` directory, not the skill installation folder.
 
 ## The Core Pattern
 
@@ -86,14 +86,14 @@ Filesystem = Disk (persistent, unlimited)
 
 | File | Purpose | When to Update |
 |------|---------|----------------|
-| `task_plan.md` | Phases, progress, decisions | After each phase |
-| `findings.md` | Research, discoveries | After ANY discovery |
-| `progress.md` | Session log, test results | Throughout session |
+| `.state/task_plan.md` | Phases, progress, decisions | After each phase |
+| `.state/findings.md` | Research, discoveries | After ANY discovery |
+| `.state/progress.md` | Session log, test results | Throughout session |
 
 ## Critical Rules
 
 ### 1. Create Plan First
-Never start a complex task without `task_plan.md`. Non-negotiable.
+Never start a complex task without `.state/task_plan.md`. Non-negotiable.
 
 ### 2. The 2-Action Rule
 > "After every 2 view/browser/search operations, IMMEDIATELY save key findings to text files."
@@ -168,11 +168,11 @@ If you can answer these, your context management is solid:
 
 | Question | Answer Source |
 |----------|---------------|
-| Where am I? | Current phase in task_plan.md |
+| Where am I? | Current phase in `.state/task_plan.md` |
 | Where am I going? | Remaining phases |
 | What's the goal? | Goal statement in plan |
-| What have I learned? | findings.md |
-| What have I done? | progress.md |
+| What have I learned? | `.state/findings.md` |
+| What have I done? | `.state/progress.md` |
 
 ## When to Use This Pattern
 
@@ -213,7 +213,7 @@ Helper scripts for automation:
 
 | Don't | Do Instead |
 |-------|------------|
-| Use TodoWrite for persistence | Create task_plan.md file |
+| Use TodoWrite for persistence | Create `.state/task_plan.md` file |
 | State goals once and forget | Re-read plan before decisions |
 | Hide errors and retry silently | Log errors to plan file |
 | Stuff everything in context | Store large content in files |

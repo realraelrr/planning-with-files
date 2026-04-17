@@ -2,7 +2,7 @@
 # planning-with-files: Pre-tool-use hook for Codex
 # Reused from the Cursor integration.
 
-PLAN_FILE="task_plan.md"
+PLAN_FILE=".state/task_plan.md"
 
 if [ -f "$PLAN_FILE" ]; then
     # Log plan context to stderr so the Codex adapter can surface it as systemMessage.

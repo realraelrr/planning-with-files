@@ -9,8 +9,17 @@ $DATE = Get-Date -Format "yyyy-MM-dd"
 
 Write-Host "Initializing planning files for: $ProjectName"
 
-# Create task_plan.md if it doesn't exist
-if (-not (Test-Path "task_plan.md")) {
+$stateDir = ".state"
+$taskPlanFile = Join-Path $stateDir "task_plan.md"
+$findingsFile = Join-Path $stateDir "findings.md"
+$progressFile = Join-Path $stateDir "progress.md"
+
+if (-not (Test-Path $stateDir)) {
+    New-Item -ItemType Directory -Path $stateDir | Out-Null
+}
+
+# Create .state/task_plan.md if it doesn't exist
+if (-not (Test-Path $taskPlanFile)) {
     @"
 # Task Plan: [Brief Description]
 
@@ -25,7 +34,7 @@ Phase 1
 ### Phase 1: Requirements & Discovery
 - [ ] Understand user intent
 - [ ] Identify constraints
-- [ ] Document in findings.md
+- [ ] Document in .state/findings.md
 - **Status:** in_progress
 
 ### Phase 2: Planning & Structure
@@ -55,14 +64,14 @@ Phase 1
 ## Errors Encountered
 | Error | Resolution |
 |-------|------------|
-"@ | Out-File -FilePath "task_plan.md" -Encoding UTF8
-    Write-Host "Created task_plan.md"
+"@ | Out-File -FilePath $taskPlanFile -Encoding UTF8
+    Write-Host "Created $taskPlanFile"
 } else {
-    Write-Host "task_plan.md already exists, skipping"
+    Write-Host "$taskPlanFile already exists, skipping"
 }
 
-# Create findings.md if it doesn't exist
-if (-not (Test-Path "findings.md")) {
+# Create .state/findings.md if it doesn't exist
+if (-not (Test-Path $findingsFile)) {
     @"
 # Findings & Decisions
 
@@ -82,14 +91,14 @@ if (-not (Test-Path "findings.md")) {
 
 ## Resources
 -
-"@ | Out-File -FilePath "findings.md" -Encoding UTF8
-    Write-Host "Created findings.md"
+"@ | Out-File -FilePath $findingsFile -Encoding UTF8
+    Write-Host "Created $findingsFile"
 } else {
-    Write-Host "findings.md already exists, skipping"
+    Write-Host "$findingsFile already exists, skipping"
 }
 
-# Create progress.md if it doesn't exist
-if (-not (Test-Path "progress.md")) {
+# Create .state/progress.md if it doesn't exist
+if (-not (Test-Path $progressFile)) {
     @"
 # Progress Log
 
@@ -109,12 +118,12 @@ if (-not (Test-Path "progress.md")) {
 ### Errors
 | Error | Resolution |
 |-------|------------|
-"@ | Out-File -FilePath "progress.md" -Encoding UTF8
-    Write-Host "Created progress.md"
+"@ | Out-File -FilePath $progressFile -Encoding UTF8
+    Write-Host "Created $progressFile"
 } else {
-    Write-Host "progress.md already exists, skipping"
+    Write-Host "$progressFile already exists, skipping"
 }
 
 Write-Host ""
 Write-Host "Planning files initialized!"
-Write-Host "Files: task_plan.md, findings.md, progress.md"
+Write-Host "Files: $taskPlanFile, $findingsFile, $progressFile"

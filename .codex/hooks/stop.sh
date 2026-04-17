@@ -2,7 +2,7 @@
 # planning-with-files: Stop hook for Codex
 # Reused from the Cursor integration; Codex adapts followup_message separately.
 
-PLAN_FILE="task_plan.md"
+PLAN_FILE=".state/task_plan.md"
 
 if [ ! -f "$PLAN_FILE" ]; then
     exit 0
@@ -25,9 +25,9 @@ fi
 : "${PENDING:=0}"
 
 if [ "$COMPLETE" -eq "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
-    echo "{\"followup_message\": \"[planning-with-files] ALL PHASES COMPLETE ($COMPLETE/$TOTAL). If the user has additional work, add new phases to task_plan.md before starting.\"}"
+    echo "{\"followup_message\": \"[planning-with-files] ALL PHASES COMPLETE ($COMPLETE/$TOTAL). If the user has additional work, add new phases to .state/task_plan.md before starting.\"}"
     exit 0
 fi
 
-echo "{\"followup_message\": \"[planning-with-files] Task incomplete ($COMPLETE/$TOTAL phases done). Update progress.md, then read task_plan.md and continue working on the remaining phases.\"}"
+echo "{\"followup_message\": \"[planning-with-files] Task incomplete ($COMPLETE/$TOTAL phases done). Update .state/progress.md, then read .state/task_plan.md and continue working on the remaining phases.\"}"
 exit 0

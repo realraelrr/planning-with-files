@@ -9,9 +9,16 @@ DATE=$(date +%Y-%m-%d)
 
 echo "Initializing planning files for: $PROJECT_NAME"
 
-# Create task_plan.md if it doesn't exist
-if [ ! -f "task_plan.md" ]; then
-    cat > task_plan.md << 'EOF'
+STATE_DIR=".state"
+TASK_PLAN_FILE="$STATE_DIR/task_plan.md"
+FINDINGS_FILE="$STATE_DIR/findings.md"
+PROGRESS_FILE="$STATE_DIR/progress.md"
+
+mkdir -p "$STATE_DIR"
+
+# Create .state/task_plan.md if it doesn't exist
+if [ ! -f "$TASK_PLAN_FILE" ]; then
+    cat > "$TASK_PLAN_FILE" << 'EOF'
 # Task Plan: [Brief Description]
 
 ## Goal
@@ -25,7 +32,7 @@ Phase 1
 ### Phase 1: Requirements & Discovery
 - [ ] Understand user intent
 - [ ] Identify constraints
-- [ ] Document in findings.md
+- [ ] Document in .state/findings.md
 - **Status:** in_progress
 
 ### Phase 2: Planning & Structure
@@ -56,14 +63,14 @@ Phase 1
 | Error | Resolution |
 |-------|------------|
 EOF
-    echo "Created task_plan.md"
+    echo "Created $TASK_PLAN_FILE"
 else
-    echo "task_plan.md already exists, skipping"
+    echo "$TASK_PLAN_FILE already exists, skipping"
 fi
 
-# Create findings.md if it doesn't exist
-if [ ! -f "findings.md" ]; then
-    cat > findings.md << 'EOF'
+# Create .state/findings.md if it doesn't exist
+if [ ! -f "$FINDINGS_FILE" ]; then
+    cat > "$FINDINGS_FILE" << 'EOF'
 # Findings & Decisions
 
 ## Requirements
@@ -83,14 +90,14 @@ if [ ! -f "findings.md" ]; then
 ## Resources
 -
 EOF
-    echo "Created findings.md"
+    echo "Created $FINDINGS_FILE"
 else
-    echo "findings.md already exists, skipping"
+    echo "$FINDINGS_FILE already exists, skipping"
 fi
 
-# Create progress.md if it doesn't exist
-if [ ! -f "progress.md" ]; then
-    cat > progress.md << EOF
+# Create .state/progress.md if it doesn't exist
+if [ ! -f "$PROGRESS_FILE" ]; then
+    cat > "$PROGRESS_FILE" << EOF
 # Progress Log
 
 ## Session: $DATE
@@ -110,11 +117,11 @@ if [ ! -f "progress.md" ]; then
 | Error | Resolution |
 |-------|------------|
 EOF
-    echo "Created progress.md"
+    echo "Created $PROGRESS_FILE"
 else
-    echo "progress.md already exists, skipping"
+    echo "$PROGRESS_FILE already exists, skipping"
 fi
 
 echo ""
 echo "Planning files initialized!"
-echo "Files: task_plan.md, findings.md, progress.md"
+echo "Files: $TASK_PLAN_FILE, $FINDINGS_FILE, $PROGRESS_FILE"

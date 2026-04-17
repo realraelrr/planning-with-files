@@ -2,7 +2,7 @@
 <!-- 
   WHAT: Your session log - a chronological record of what you did, when, and what happened.
   WHY: Answers "What have I done?" in the 5-Question Reboot Test. Helps you resume after breaks.
-  WHEN: Update after completing each phase or encountering errors. More detailed than task_plan.md.
+  WHEN: Update after completing each phase or encountering errors. More detailed than .state/task_plan.md.
 -->
 
 ## Session: [DATE]
@@ -21,7 +21,7 @@
 - **Status:** in_progress
 - **Started:** [timestamp]
 <!-- 
-  STATUS: Same as task_plan.md (pending, in_progress, complete)
+  STATUS: Same as .state/task_plan.md (pending, in_progress, complete)
   TIMESTAMP: When you started this phase (e.g., "2026-01-15 10:00")
 -->
 - Actions taken:
@@ -40,7 +40,7 @@
     EXAMPLE:
       - todo.py (created)
       - todos.json (created by app)
-      - task_plan.md (updated)
+      - .state/task_plan.md (updated)
   -->
   -
 
@@ -71,7 +71,7 @@
 ## Error Log
 <!-- 
   WHAT: Detailed log of every error encountered, with timestamps and resolution attempts.
-  WHY: More detailed than task_plan.md's error table. Helps you learn from mistakes.
+  WHY: More detailed than .state/task_plan.md's error table. Helps you learn from mistakes.
   WHEN: Add immediately when an error occurs, even if you fix it quickly.
   EXAMPLE:
     | 2026-01-15 10:35 | FileNotFoundError | 1 | Added file existence check |
@@ -89,11 +89,11 @@
   WHEN: Update periodically, especially when resuming after a break or context reset.
   
   THE 5 QUESTIONS:
-  1. Where am I? → Current phase in task_plan.md
+  1. Where am I? → Current phase in .state/task_plan.md
   2. Where am I going? → Remaining phases
-  3. What's the goal? → Goal statement in task_plan.md
-  4. What have I learned? → See findings.md
-  5. What have I done? → See progress.md (this file)
+  3. What's the goal? → Goal statement in .state/task_plan.md
+  4. What have I learned? → See .state/findings.md
+  5. What have I done? → See .state/progress.md (this file)
 -->
 <!-- If you can answer these, context is solid -->
 | Question | Answer |
@@ -101,7 +101,7 @@
 | Where am I? | Phase X |
 | Where am I going? | Remaining phases |
 | What's the goal? | [goal statement] |
-| What have I learned? | See findings.md |
+| What have I learned? | See .state/findings.md |
 | What have I done? | See above |
 
 ---

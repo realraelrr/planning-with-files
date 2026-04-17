@@ -19,7 +19,7 @@ try:
 except ImportError:
     orjson = None
 
-PLANNING_FILES = ['task_plan.md', 'progress.md', 'findings.md']
+PLANNING_FILES = ['.state/task_plan.md', '.state/progress.md', '.state/findings.md']
 MIN_SESSION_BYTES = 5000
 
 
@@ -429,7 +429,7 @@ def main():
 
     print("\n--- RECOMMENDED ---")
     print("1. Run: git diff --stat")
-    print("2. Read: task_plan.md, progress.md, findings.md")
+    print("2. Read: .state/task_plan.md, .state/progress.md, .state/findings.md")
     print("3. Update planning files based on above context")
     print("4. Continue with task")
 
