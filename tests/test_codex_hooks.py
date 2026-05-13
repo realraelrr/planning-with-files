@@ -12,6 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CODEX_ROOT = REPO_ROOT / ".codex"
 HOOKS_JSON = CODEX_ROOT / "hooks.json"
 HOOKS_DIR = CODEX_ROOT / "hooks"
+CODEX_SKILL = CODEX_ROOT / "skills" / "planning-with-files"
+CODEX_SKILL_MD = CODEX_SKILL / "SKILL.md"
+CODEX_SKILL_SCRIPTS = CODEX_SKILL / "scripts"
 
 
 class CodexHooksTests(unittest.TestCase):
@@ -35,6 +38,15 @@ class CodexHooksTests(unittest.TestCase):
             check=False,
         )
 
+    def run_skill_script(self, script_name: str, cwd: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["sh", str(CODEX_SKILL_SCRIPTS / script_name)],
+            text=True,
+            capture_output=True,
+            cwd=str(cwd),
+            check=False,
+        )
+
     def test_hooks_json_declares_all_expected_codex_events(self) -> None:
         self.assertTrue(HOOKS_JSON.exists(), ".codex/hooks.json is missing")
 
@@ -43,6 +55,12 @@ class CodexHooksTests(unittest.TestCase):
             {"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"},
             set(payload["hooks"]),
         )
+
+    def test_skill_frontmatter_hooks_route_through_codex_scripts(self) -> None:
+        skill_md = CODEX_SKILL_MD.read_text(encoding="utf-8")
+        for script in ("user-prompt-submit.sh", "pre-tool-use.sh", "post-tool-use.sh", "stop.sh"):
+            self.assertIn(f"$SD/{script}", skill_md)
+        self.assertNotIn("if [ -f .state/task_plan.md ]", skill_md)
 
     def test_session_start_reuses_plan_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as home:
@@ -70,6 +88,65 @@ class CodexHooksTests(unittest.TestCase):
         self.assertIn("ACTIVE PLAN", result.stdout)
         self.assertIn("Ship Codex hooks", result.stdout)
         self.assertIn("Finished adapter draft", result.stdout)
+
+    def test_active_planning_dir_takes_precedence_over_state_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            state_dir = root / ".state"
+            state_dir.mkdir()
+            state_dir.joinpath("task_plan.md").write_text("# State Plan\n", encoding="utf-8")
+            state_dir.joinpath("progress.md").write_text("# State Progress\n", encoding="utf-8")
+
+            plan_dir = root / ".planning" / "feature-a"
+            plan_dir.mkdir(parents=True)
+            plan_dir.joinpath("task_plan.md").write_text("# Planning Plan\n", encoding="utf-8")
+            plan_dir.joinpath("progress.md").write_text("# Planning Progress\n", encoding="utf-8")
+            (root / ".planning" / ".active_plan").write_text("feature-a\n", encoding="utf-8")
+
+            result = self.run_shell_hook("user-prompt-submit.sh", root)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Planning Plan", result.stdout)
+        self.assertNotIn("State Plan", result.stdout)
+
+    def test_stale_active_plan_falls_back_to_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            state_dir = root / ".state"
+            state_dir.mkdir()
+            state_dir.joinpath("task_plan.md").write_text("# State Plan\n", encoding="utf-8")
+            state_dir.joinpath("progress.md").write_text("# State Progress\n", encoding="utf-8")
+
+            empty_plan_dir = root / ".planning" / "empty"
+            empty_plan_dir.mkdir(parents=True)
+            (root / ".planning" / ".active_plan").write_text("empty\n", encoding="utf-8")
+
+            result = self.run_shell_hook("user-prompt-submit.sh", root)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("State Plan", result.stdout)
+
+    def test_codex_skill_script_uses_resolver_and_attestation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            state_dir = root / ".state"
+            state_dir.mkdir()
+            state_dir.joinpath("task_plan.md").write_text("# State Plan\n", encoding="utf-8")
+            state_dir.joinpath("progress.md").write_text("# State Progress\n", encoding="utf-8")
+
+            plan_dir = root / ".planning" / "feature-a"
+            plan_dir.mkdir(parents=True)
+            plan_dir.joinpath("task_plan.md").write_text("# Planning Plan\n", encoding="utf-8")
+            plan_dir.joinpath("progress.md").write_text("# Planning Progress\n", encoding="utf-8")
+            plan_dir.joinpath(".attestation").write_text("not-the-current-hash\n", encoding="utf-8")
+            (root / ".planning" / ".active_plan").write_text("feature-a\n", encoding="utf-8")
+
+            result = self.run_skill_script("user-prompt-submit.sh", root)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("PLAN TAMPERED", result.stdout)
+        self.assertNotIn("Planning Plan", result.stdout)
+        self.assertNotIn("State Plan", result.stdout)
 
     def test_pre_tool_use_adapter_emits_system_message(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

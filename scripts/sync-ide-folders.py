@@ -46,6 +46,12 @@ SCRIPTS = [
     "scripts/init-session.sh",
     "scripts/init-session.ps1",
     "scripts/session-catchup.py",
+    "scripts/resolve-plan-dir.sh",
+    "scripts/resolve-plan-dir.ps1",
+    "scripts/set-active-plan.sh",
+    "scripts/set-active-plan.ps1",
+    "scripts/attest-plan.sh",
+    "scripts/attest-plan.ps1",
 ]
 
 # ─── IDE sync manifests ───────────────────────────────────────────
@@ -114,8 +120,12 @@ IDE_MANIFESTS = {
 
     ".codex": _build_manifest(
         ".codex/skills/planning-with-files",
-        ref_style="subdir",
-        include_scripts=True,
+        ref_style="skip",
+        template_dirs=[],
+        include_scripts=False,
+        # Codex keeps local agent working files under .state/ by default, so its
+        # skill docs, templates, references, and scripts intentionally diverge
+        # from the canonical root-level workflow.
     ),
 
     # .openclaw, .kilocode, .adal, .agent removed in v2.24.0 (IDE audit)

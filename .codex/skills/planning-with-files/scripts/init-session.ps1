@@ -1,26 +1,43 @@
-# Initialize planning files for a new session
-# Usage: .\init-session.ps1 [project-name]
+# Initialize planning files for a new Codex session
+# Usage: .\init-session.ps1 [-Template TYPE] [project-name]
+# Templates: default, analytics
 
 param(
-    [string]$ProjectName = "project"
+    [string]$ProjectName = "project",
+    [string]$Template = "default"
 )
 
 $DATE = Get-Date -Format "yyyy-MM-dd"
 
-Write-Host "Initializing planning files for: $ProjectName"
+# Resolve template directory (skill root is one level up from scripts/)
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$SkillRoot = Split-Path -Parent $ScriptDir
+$TemplateDir = Join-Path $SkillRoot "templates"
 
-$stateDir = ".state"
-$taskPlanFile = Join-Path $stateDir "task_plan.md"
-$findingsFile = Join-Path $stateDir "findings.md"
-$progressFile = Join-Path $stateDir "progress.md"
+Write-Host "Initializing planning files for: $ProjectName (template: $Template)"
 
-if (-not (Test-Path $stateDir)) {
-    New-Item -ItemType Directory -Path $stateDir | Out-Null
+# Validate template
+if ($Template -ne "default" -and $Template -ne "analytics") {
+    Write-Host "Unknown template: $Template (available: default, analytics). Using default."
+    $Template = "default"
+}
+
+$StateDir = ".state"
+$TaskPlanFile = Join-Path $StateDir "task_plan.md"
+$FindingsFile = Join-Path $StateDir "findings.md"
+$ProgressFile = Join-Path $StateDir "progress.md"
+
+if (-not (Test-Path $StateDir)) {
+    New-Item -ItemType Directory -Path $StateDir | Out-Null
 }
 
 # Create .state/task_plan.md if it doesn't exist
-if (-not (Test-Path $taskPlanFile)) {
-    @"
+if (-not (Test-Path $TaskPlanFile)) {
+    $AnalyticsPlan = Join-Path $TemplateDir "analytics_task_plan.md"
+    if ($Template -eq "analytics" -and (Test-Path $AnalyticsPlan)) {
+        Copy-Item $AnalyticsPlan $TaskPlanFile
+    } else {
+        @"
 # Task Plan: [Brief Description]
 
 ## Goal
@@ -34,7 +51,7 @@ Phase 1
 ### Phase 1: Requirements & Discovery
 - [ ] Understand user intent
 - [ ] Identify constraints
-- [ ] Document in .state/findings.md
+- [ ] Document in findings.md
 - **Status:** in_progress
 
 ### Phase 2: Planning & Structure
@@ -64,15 +81,20 @@ Phase 1
 ## Errors Encountered
 | Error | Resolution |
 |-------|------------|
-"@ | Out-File -FilePath $taskPlanFile -Encoding UTF8
-    Write-Host "Created $taskPlanFile"
+"@ | Out-File -FilePath $TaskPlanFile -Encoding UTF8
+    }
+    Write-Host "Created $TaskPlanFile"
 } else {
-    Write-Host "$taskPlanFile already exists, skipping"
+    Write-Host "$TaskPlanFile already exists, skipping"
 }
 
 # Create .state/findings.md if it doesn't exist
-if (-not (Test-Path $findingsFile)) {
-    @"
+if (-not (Test-Path $FindingsFile)) {
+    $AnalyticsFindings = Join-Path $TemplateDir "analytics_findings.md"
+    if ($Template -eq "analytics" -and (Test-Path $AnalyticsFindings)) {
+        Copy-Item $AnalyticsFindings $FindingsFile
+    } else {
+        @"
 # Findings & Decisions
 
 ## Requirements
@@ -91,15 +113,38 @@ if (-not (Test-Path $findingsFile)) {
 
 ## Resources
 -
-"@ | Out-File -FilePath $findingsFile -Encoding UTF8
-    Write-Host "Created $findingsFile"
+"@ | Out-File -FilePath $FindingsFile -Encoding UTF8
+    }
+    Write-Host "Created $FindingsFile"
 } else {
-    Write-Host "$findingsFile already exists, skipping"
+    Write-Host "$FindingsFile already exists, skipping"
 }
 
 # Create .state/progress.md if it doesn't exist
-if (-not (Test-Path $progressFile)) {
-    @"
+if (-not (Test-Path $ProgressFile)) {
+    if ($Template -eq "analytics") {
+        @"
+# Progress Log
+
+## Session: $DATE
+
+### Current Status
+- **Phase:** 1 - Data Discovery
+- **Started:** $DATE
+
+### Actions Taken
+-
+
+### Query Log
+| Query | Result Summary | Interpretation |
+|-------|---------------|----------------|
+
+### Errors
+| Error | Resolution |
+|-------|------------|
+"@ | Out-File -FilePath $ProgressFile -Encoding UTF8
+    } else {
+        @"
 # Progress Log
 
 ## Session: $DATE
@@ -118,12 +163,13 @@ if (-not (Test-Path $progressFile)) {
 ### Errors
 | Error | Resolution |
 |-------|------------|
-"@ | Out-File -FilePath $progressFile -Encoding UTF8
-    Write-Host "Created $progressFile"
+"@ | Out-File -FilePath $ProgressFile -Encoding UTF8
+    }
+    Write-Host "Created $ProgressFile"
 } else {
-    Write-Host "$progressFile already exists, skipping"
+    Write-Host "$ProgressFile already exists, skipping"
 }
 
 Write-Host ""
 Write-Host "Planning files initialized!"
-Write-Host "Files: $taskPlanFile, $findingsFile, $progressFile"
+Write-Host "Files: $TaskPlanFile, $FindingsFile, $ProgressFile"

@@ -104,6 +104,11 @@ These amazing people have contributed code, documentation, or significant improv
 
 ### Other Contributors
 
+- **[@oaabahussain](https://github.com/oaabahussain)** - [Issue #150](https://github.com/OthmanAdi/planning-with-files/issues/150), [Issue #151](https://github.com/OthmanAdi/planning-with-files/issues/151)
+  - Issue #150: pointed out that the v2.36.1 BEGIN/END delimiters were a mitigation, not a guarantee, and proposed SHA-256 hash attestation so any silent edit to `task_plan.md` between user approval and hook injection trips a verifiable check
+  - Issue #151: named the regression class behind v2.34.1, v2.36.0, v2.36.2, and v2.36.3 (parity-locked files updated by hand across 19 destinations) and proposed the right surgical fix: a single bumper script plus a CI parity test
+  - **Impact:** v2.37.0 ships `/plan-attest`, `attest-plan.sh/.ps1`, `bump-version.py`, and two new test files that turn both report classes into things that fail the build instead of shipping silently
+
 - **[@gavinlinasd](https://github.com/gavinlinasd)** - [PR #135](https://github.com/OthmanAdi/planning-with-files/pull/135)
   - Added ClawHub download history chart to README, tracking skill download growth over time
   - **Impact:** Visitors can now see download traction at a glance
@@ -114,6 +119,22 @@ These amazing people have contributed code, documentation, or significant improv
   - PR #138: capped session-catchup output at 100 lines with a labeled prefix before injecting into model context, closing a prompt injection vector from stored session content
   - PR #139: preferred known system Python paths over unqualified PATH resolution in `session-start.sh`, `pre-tool-use.sh`, and `error-occurred.sh`
   - **Impact:** Hardened the Copilot hook scripts and the Pi variant in one coordinated audit pass
+
+- **[@githubYiheng](https://github.com/githubYiheng)** - [Issue #146](https://github.com/OthmanAdi/planning-with-files/issues/146)
+  - Reported Codex session isolation failure: any Codex session in a shared working directory received the active plan context from an unrelated session, because the hooks keyed only on `task_plan.md` presence
+  - Traced the code path through `user-prompt-submit.sh`, `pre_tool_use.py`, and `stop.py`, and proposed the session attachment model as a fix direction
+  - **Impact:** Led to `$PWF_SESSION_ID` + sentinel file isolation, backward-compatible upgrade path, and 5 new targeted tests
+
+- **[@09ashishkapoor](https://github.com/09ashishkapoor)** - [Issue #147](https://github.com/OthmanAdi/planning-with-files/issues/147)
+  - Filed a detailed Hermes documentation gap report: the integration worked but docs implied feature parity with hook-native platforms, leading to user confusion when stop/block behavior differed
+  - Outlined the four sections needed (what works, what is not equivalent, recommended pattern, tradeoffs) with enough specificity to write from directly
+  - **Impact:** `docs/hermes.md` now has an `Integration Notes` section that sets accurate expectations for Hermes adopters
+
+- **[@shawnli1874](https://github.com/shawnli1874)** - [Issue #148](https://github.com/OthmanAdi/planning-with-files/issues/148)
+  - Reported that v2.0.0 hooks broke parallel multi-task workflows by hardcoding `task_plan.md` at the project root, removing the placement flexibility that CLAUDE.md conventions had previously allowed
+  - Provided a concrete reproduction with anonymized task files showing how parallel sessions contaminated each other after a few hours of work
+  - Proposed the `YYYY-MM-DD-<slug>/` naming convention as a human-readable alternative to the UUID approach in `experimental/isolated-planning`
+  - **Impact:** Slug-based `init-session.sh`, `set-active-plan.sh`, `resolve-plan-dir.sh`, and the full Codex hook resolver wire-up all trace back to this report
 
 - **[@Leon-Algo](https://github.com/Leon-Algo)** - [PR #119](https://github.com/OthmanAdi/planning-with-files/pull/119), [PR #120](https://github.com/OthmanAdi/planning-with-files/pull/120), [PR #122](https://github.com/OthmanAdi/planning-with-files/pull/122)
   - Made planning scripts executable in `.codex` skill install, fixing Codex installer breakage (PR #119)
@@ -188,6 +209,10 @@ These amazing people have contributed code, documentation, or significant improv
   - Fixed Codex session-catchup silently scanning Claude session paths; now prints an explicit fallback message when running from Codex context (PR #100)
   - **Impact:** Significant docs and tooling consistency sweep across the entire multi-IDE surface
 
+- **[@Emin017](https://github.com/Emin017)** (Qiming Chu) - [PR #145](https://github.com/OthmanAdi/planning-with-files/pull/145)
+  - Changed shebangs from `/bin/bash` to `/usr/bin/env bash` across hook scripts
+  - Fixes compatibility on systems like NixOS where bash is not at `/bin/bash`
+
 ## Community Forks
 
 These developers have created forks that extend the functionality:
@@ -214,6 +239,12 @@ Thank you to everyone who reported issues, provided feedback, and helped test fi
 
 And many others who have starred, forked, and shared this project!
 
+- **[@voidborne-d](https://github.com/voidborne-d)** - [PR #149](https://github.com/OthmanAdi/planning-with-files/pull/149)
+  - Caught that `skills/planning-with-files/scripts/init-session.sh` was not updated when slug mode shipped in v2.36.0, meaning users installing via npx or IDE folders silently received the old script
+  - Identified the same gap in the analytics template (v2.29.0) and the shebang drift from v2.35.1 across IDE mirror folders
+  - Synced the canonical skill copy and all IDE mirrors using the existing `sync-ide-folders.py` tool, and added a byte-comparison regression test plus a `--verify` CI assertion to prevent recurrence
+  - **Impact:** v2.36.0 headline feature (parallel plan isolation) now actually reaches users who install via the skill; regression test closes the drift class permanently
+
 ## How to Contribute
 
 We welcome contributions! Here's how you can help:
@@ -232,6 +263,6 @@ If you've contributed and don't see your name here, please open an issue! We wan
 
 ---
 
-**Total Contributors:** 36+ and growing!
+**Total Contributors:** 40+ and growing!
 
-*Last updated: April 21, 2026*
+*Last updated: May 1, 2026*

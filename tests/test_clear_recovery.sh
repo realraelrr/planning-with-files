@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # test_clear_recovery.sh — Automated test for session recovery after /clear
 #
 # Tests that the UserPromptSubmit hook injects actual plan content

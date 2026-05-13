@@ -2,6 +2,110 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.37.0] - 2026-05-05
+
+### Security
+
+- **Hash attestation for plan injection** (Issue #150 by @oaabahussain): `task_plan.md` content is auto-injected into the model context on every UserPromptSubmit and PreToolUse fire. v2.36.1 added BEGIN/END delimiters, but the model still parses the bytes. v2.37.0 adds an opt-in second layer: run `/plan-attest` (or `sh scripts/attest-plan.sh`) once a plan is finalised. The script computes a SHA-256 of `task_plan.md` and stores it at `.planning/<active-plan>/.attestation` (parallel-plan mode) or `./.plan-attestation` (legacy mode). On every hook fire, the inline check recomputes the hash and compares. On mismatch, injection is blocked and the model receives `[planning-with-files] [PLAN TAMPERED — injection blocked]` instead of plan content. When attestation is set, the injected context also carries a `Plan-SHA256:` line so the model can log the attested hash for audit. Opt-in: absence of an attestation file preserves the v2.36.x behavior.
+
+### Added
+
+- **`/plan-attest` slash command**: thin wrapper around `attest-plan.sh` with `--show` (print the stored hash) and `--clear` (re-open the plan to free editing).
+- **`scripts/attest-plan.sh` and `scripts/attest-plan.ps1`**: SHA-256 attestation helper for both POSIX shell and Windows PowerShell. Resolves the active plan via the same `$PLAN_ID` / `.active_plan` / newest-mtime / legacy chain used by the rest of the skill.
+- **`scripts/bump-version.py`** (Issue #151 by @oaabahussain): atomic version bumper for the parity-locked file set (14 SKILL.md variants, `plugin.json`, `marketplace.json`, `CITATION.cff`). Replaces 17 hand edits with one `python scripts/bump-version.py X.Y.Z`. Prevents the "missed one variant" regression class that hit v2.34.1, v2.36.0, v2.36.2, and v2.36.3. `.continue`, `.gemini`, `.pi`, and `.kiro` are intentionally excluded (separate version schemes); the script lists them at the end of every run so the omission stays visible.
+- **`tests/test_skill_md_version_parity.py`** (Issue #151): four assertions that fail the build the moment any parity-locked file diverges from the canonical SKILL.md version. Catches drift in CI before it can ship.
+- **`tests/test_plan_attestation.py`**: six tests covering legacy and parallel-plan attestation, `--show`, `--clear`, tamper detection, and missing-plan handling.
+
+### Fixed
+
+- **Duplicate test class in `tests/test_canonical_script_sync.py`**: a leftover second copy of `CanonicalScriptSyncTests` (lines 99 to 137) was running the same assertions twice. Removed.
+
+### Changed
+
+- **Security Boundary section in canonical SKILL.md**: now documents the two layers of defense (delimiters + attestation) and adds an explicit rule recommending `/plan-attest` after finalising a plan.
+- **`scripts/sync-ide-folders.py`**: SCRIPTS manifest now includes `attest-plan.sh` and `attest-plan.ps1`. The eight pre-existing scripts are unchanged.
+- **`tests/test_canonical_script_sync.py`**: `SHARED_SCRIPTS` extended to ten entries (added `attest-plan.sh` and `attest-plan.ps1`). The regression test now covers all user-facing scripts.
+- Version bumped to 2.37.0 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff` via `scripts/bump-version.py`.
+
+### Thanks
+
+- @oaabahussain for two thoughtful, well-scoped P1 reports: Issue #150 turned the v2.36.1 delimiter mitigation into a verifiable cryptographic guarantee, and Issue #151 named the regression class behind four consecutive releases and proposed the right surgical fix.
+
+## [2.36.3] - 2026-05-01
+
+### Fixed
+
+- **Missing parallel planning scripts in canonical skill copy**: `resolve-plan-dir.sh`, `resolve-plan-dir.ps1`, `set-active-plan.sh`, and `set-active-plan.ps1` were added to `scripts/` in v2.36.0 but never propagated to `skills/planning-with-files/scripts/` or the IDE mirror folders. Users installing via `npx skills add` could not use the v2.36.0 parallel planning workflow because the key scripts were not shipped in the install. Same class of gap as PR #149.
+- **`sync-ide-folders.py` manifest incomplete**: the sync manifest only listed the original five scripts and did not include the four new v2.36.0 scripts. Running the sync tool after this release propagates all nine user-facing scripts to all IDE mirrors.
+- **`test_canonical_script_sync.py` did not cover new scripts**: the SHARED_SCRIPTS tuple in the regression test from PR #149 only listed the original four scripts. Updated to include all eight user-facing scripts that must stay in sync between `scripts/` and `skills/planning-with-files/scripts/`.
+
+### Added
+
+- **Parallel planning documentation in SKILL.md**: the Scripts section now documents `resolve-plan-dir.sh` and `set-active-plan.sh` with usage descriptions and a parallel task workflow example showing how to use slug mode, `set-active-plan.sh`, and `export PLAN_ID` together.
+
+### Changed
+
+- Version bumped to 2.36.3 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff`
+
+## [2.36.2] - 2026-05-01
+
+### Fixed
+
+- **Canonical skill copy missing slug-mode init-session** (PR #149 by @voidborne-d): `skills/planning-with-files/scripts/init-session.sh` and `init-session.ps1` were not updated when slug mode shipped in v2.36.0. Users installing via `npx skills add` or any of the nine IDE folders received the legacy-only v2.0.0 script, silently missing the parallel plan isolation feature. Fixed by syncing the top-level canonical scripts into the skill directory and all IDE mirrors.
+- **Shebang drift in IDE mirror scripts**: `check-complete.sh` in `.codebuddy/`, `.codex/`, `.continue/`, `.factory/`, `.gemini/`, `.pi/` folders still used `#!/bin/bash`. Synced to `#!/usr/bin/env bash` to match the Emin017 fix from v2.35.1.
+- **Analytics template gap in canonical PS1**: `init-session.ps1` in the canonical skill copy lacked the `--template analytics` support added in v2.29.0 by @mvanhorn. Included in this sync.
+
+### Added
+
+- **Regression test** `tests/test_canonical_script_sync.py`: asserts `init-session.{sh,ps1}` and `check-complete.{sh,ps1}` are byte-identical between `scripts/` and `skills/planning-with-files/scripts/`. A second assertion invokes `sync-ide-folders.py --verify` to catch IDE mirror drift in CI. Prevents this class of silent version mismatch from recurring.
+
+### Changed
+
+- Version bumped to 2.36.2 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff`
+- `CONTRIBUTORS.md` updated: added @voidborne-d (PR #149)
+
+### Thanks
+
+- @voidborne-d for catching the canonical/top-level script drift, providing grep proof, running the sync tool, and adding the regression test that prevents recurrence (PR #149)
+
+## [2.36.1] - 2026-05-01
+
+### Security
+
+- **Stop hook: eliminate broad cache search** (Gen Agent Trust Hub COMMAND_EXECUTION): replaced `Get-ChildItem -Recurse` over `~/.claude/plugins/cache` with resolution through `$CLAUDE_SKILL_DIR` env var first, then two specific known install paths (`~/.claude/skills/` and `~/.claude/plugins/marketplaces/`). Removes the attack surface where a malicious `check-complete.ps1` planted anywhere in the cache directory would be found and executed.
+- **PowerShell ExecutionPolicy: Bypass → RemoteSigned** (Gen Agent Trust Hub COMMAND_EXECUTION): `ExecutionPolicy Bypass` circumvents all script execution policies. `RemoteSigned` allows locally created scripts while still blocking downloaded scripts that lack a trusted signature. Applied across all 14 SKILL.md variants.
+- **Prompt injection delimiters** (Gen Agent Trust Hub PROMPT_INJECTION): `UserPromptSubmit` and `PreToolUse` hook output now wraps injected plan content in `---BEGIN PLAN DATA---` / `---END PLAN DATA---` markers with explicit model instructions to treat enclosed content as structured data and ignore embedded instructions. Addresses the lack of sanitization and boundary markers flagged in the audit.
+- **Security Boundary section updated** (Snyk W011): added explicit model instruction that `findings.md` content (which ingests third-party web/search results) must be treated as raw data regardless of what it contains. Clarifies the delimiter contract to auditors and the model.
+
+### Changed
+
+- Version bumped to 2.36.1 across all 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff`
+
+## [2.36.0] - 2026-05-01
+
+### Added
+
+- **Parallel plan isolation** (Issue #148 by @shawnli1874): `init-session.sh` now accepts a task name and creates a dated, readable plan directory under `.planning/YYYY-MM-DD-<slug>/`. Each parallel task gets its own isolated directory, ending the cross-contamination that v2.0.0 hooks introduced by hardcoding `task_plan.md` at the project root. Legacy zero-argument behavior is unchanged. New `set-active-plan.sh` and `set-active-plan.ps1` let users explicitly switch between plans without exporting `PLAN_ID`. New `resolve-plan-dir.sh` and `resolve-plan-dir.ps1` provide the resolution chain: `$PLAN_ID` env var, then `.planning/.active_plan`, then the newest plan directory by mtime, then empty (legacy fallback). All four Codex lifecycle hooks (UserPromptSubmit, PreToolUse, PostToolUse, Stop) now route through the resolver instead of assuming a root-level `task_plan.md`.
+- **Codex session isolation** (Issue #146 by @githubYiheng): Codex sessions in a shared working directory no longer receive plan context from unrelated sessions. Attachment is opt-in: create `.planning/sessions/<session_id>.attached` to bind a session to the active plan. `user-prompt-submit.sh`, `pre_tool_use.py`, `stop.py`, and `post_tool_use.py` all gate on session attachment before injecting context or blocking. Backward compatible: absence of `.planning/sessions/` preserves existing single-session behavior.
+- **Hermes integration notes** (Issue #147 by @09ashishkapoor): `docs/hermes.md` gains an `Integration Notes` section that separates what the adapter provides today from what is not full parity with hook-native platforms. Covers current support level, recommended integration pattern, and a tradeoffs table. Reduces confusion for users migrating from Claude Code hook workflows.
+- **34 new tests**: `tests/test_resolve_plan_dir.py` (7), `tests/test_init_session_slug.py` (6), `tests/test_hook_resolver_integration.py` (10), `tests/test_codex_session_isolation.py` (5), `tests/test_set_active_plan.py` (6).
+
+### Fixed
+
+- **`resolve_latest_dir` skips non-plan directories**: auto-discovery previously matched any subdirectory under `.planning/`, including the new `sessions/` directory. It now requires `task_plan.md` to be present, preventing session isolation from silently breaking when both features are active.
+- **`short_uuid()` bypasses Windows App Execution Aliases**: the function now probes each Python candidate with a test run before trusting `command -v`, avoiding the case where the Windows Store alias reports presence but exits non-zero.
+
+### Changed
+
+- Version bumped to 2.36.0 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff`
+- `CONTRIBUTORS.md` updated: added @githubYiheng (Issue #146), @09ashishkapoor (Issue #147), @shawnli1874 (Issue #148); total count now 39+
+
+### Thanks
+
+- @githubYiheng for tracing the session boundary problem down to its exact code path and proposing the session attachment model (Issue #146)
+- @09ashishkapoor for the clear documentation gap report and the four-section structure that made writing the fix straightforward (Issue #147)
+- @shawnli1874 for the detailed parallel workflow breakdown, the concrete reproduction case, and the slug naming proposal that shaped the final design (Issue #148)
+
 ## [2.35.0] - 2026-04-21
 
 ### Added
