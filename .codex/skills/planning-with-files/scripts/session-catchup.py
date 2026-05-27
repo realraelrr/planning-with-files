@@ -19,6 +19,7 @@ try:
 except ImportError:
     orjson = None
 
+PLANNING_FILENAMES = ('task_plan.md', 'progress.md', 'findings.md')
 PLANNING_FILES = ['.state/task_plan.md', '.state/progress.md', '.state/findings.md']
 MIN_SESSION_BYTES = 5000
 
@@ -192,6 +193,11 @@ def parse_session_messages(session_file: Path) -> List[Dict[str, Any]]:
 def planning_file_from_path(path_value: Any) -> Optional[str]:
     if not isinstance(path_value, str):
         return None
+    normalized = path_value.replace('\\', '/')
+    if '/.state/tasks/' in normalized:
+        name = normalized.rsplit('/', 1)[-1]
+        if name in PLANNING_FILENAMES:
+            return name
     for pf in PLANNING_FILES:
         if path_value.endswith(pf):
             return pf
@@ -200,7 +206,7 @@ def planning_file_from_path(path_value: Any) -> Optional[str]:
 
 def planning_file_from_paths(paths: Iterable[Any]) -> Optional[str]:
     matches = {pf for path in paths if (pf := planning_file_from_path(path))}
-    for pf in PLANNING_FILES:
+    for pf in [*PLANNING_FILES, *PLANNING_FILENAMES]:
         if pf in matches:
             return pf
     return None
@@ -374,10 +380,26 @@ def extract_messages_after(messages: List[Dict[str, Any]], after_line: int) -> L
 def main():
     project_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
 
+    knot_task_roots = [
+        Path(value, '.state', 'tasks')
+        for value in (
+            os.environ.get('KNOT_ACTOR_WORKSPACE'),
+            os.environ.get('KNOT_USER_WORKSPACE'),
+            os.environ.get('KNOT_ACTIVE_WORKSPACE'),
+        )
+        if value
+    ]
+    if os.environ.get('KNOT_ROOT'):
+        knot_task_roots.append(Path(os.environ['KNOT_ROOT'], 'workspace', '.state', 'tasks'))
+    knot_task_roots.extend([
+        Path(project_path, 'workspace', '.state', 'tasks'),
+        Path(project_path, '.state', 'tasks'),
+    ])
+
     # Check if planning files exist (indicates active task)
     has_planning_files = any(
         Path(project_path, f).exists() for f in PLANNING_FILES
-    )
+    ) or any(any(root.glob('*/task_plan.md')) for root in knot_task_roots)
     if not has_planning_files:
         # No planning files in this project; skip catchup to avoid noise.
         return

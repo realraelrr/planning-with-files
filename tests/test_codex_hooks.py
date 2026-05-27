@@ -126,6 +126,37 @@ class CodexHooksTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("State Plan", result.stdout)
 
+    def test_knot_actor_lane_task_is_resolved_by_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            actor = root / "workspace/groups/team/work/member"
+            task_dir = actor / ".state/tasks/group-task"
+            task_dir.mkdir(parents=True)
+            task_dir.joinpath("task_plan.md").write_text("# Group Actor Plan\n", encoding="utf-8")
+            task_dir.joinpath("progress.md").write_text("# Progress\n", encoding="utf-8")
+            task_dir.parent.joinpath(".active_task").write_text("group-task\n", encoding="utf-8")
+
+            env = {**os.environ, "KNOT_ACTOR_WORKSPACE": str(actor)}
+            result = self.run_shell_hook("user-prompt-submit.sh", root, env=env)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Group Actor Plan", result.stdout)
+
+    def test_knot_root_task_is_resolved_by_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task_dir = root / "workspace/.state/tasks/root-task"
+            task_dir.mkdir(parents=True)
+            task_dir.joinpath("task_plan.md").write_text("# Root Operator Plan\n", encoding="utf-8")
+            task_dir.joinpath("progress.md").write_text("# Progress\n", encoding="utf-8")
+            task_dir.parent.joinpath(".active_task").write_text("root-task\n", encoding="utf-8")
+
+            env = {**os.environ, "KNOT_ROOT": str(root)}
+            result = self.run_shell_hook("user-prompt-submit.sh", root, env=env)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Root Operator Plan", result.stdout)
+
     def test_codex_skill_script_uses_resolver_and_attestation(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

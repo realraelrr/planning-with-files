@@ -1,11 +1,14 @@
 """Tests for scripts/resolve-plan-dir.sh — addresses #148.
 
 Resolver order:
-  1. $PLAN_ID env → .planning/<id>/ if it contains task_plan.md
-  2. .planning/.active_plan content → .planning/<id>/ if it contains task_plan.md
-  3. Newest .planning/<dir>/ by mtime
-  4. Legacy fallback: <cwd>/task_plan.md exists → emit empty (caller uses cwd)
-  5. Otherwise empty stdout, exit 0
+  1. $KNOT_PLANNING_TASK_DIR if it contains task_plan.md
+  2. $PLAN_ID env under Knot scope-aware .state/tasks roots
+  3. Knot .state/tasks/.active_task under actor/user/current workspace roots
+  4. $PLAN_ID env → .planning/<id>/ if it contains task_plan.md
+  5. .planning/.active_plan content → .planning/<id>/ if it contains task_plan.md
+  6. Newest .planning/<dir>/ by mtime
+  7. .state/ if it contains task_plan.md
+  8. Otherwise empty stdout, exit 0
 """
 from __future__ import annotations
 
@@ -22,11 +25,26 @@ RESOLVE_SH = REPO_ROOT / "scripts" / "resolve-plan-dir.sh"
 
 
 class ResolvePlanDirTests(unittest.TestCase):
-    def run_resolver(self, cwd: Path, plan_id: str | None = None) -> subprocess.CompletedProcess[str]:
+    def run_resolver(
+        self,
+        cwd: Path,
+        plan_id: str | None = None,
+        extra_env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
-        env.pop("PLAN_ID", None)
+        for key in (
+            "PLAN_ID",
+            "KNOT_PLANNING_TASK_DIR",
+            "KNOT_ACTOR_WORKSPACE",
+            "KNOT_USER_WORKSPACE",
+            "KNOT_ACTIVE_WORKSPACE",
+            "KNOT_ROOT",
+        ):
+            env.pop(key, None)
         if plan_id is not None:
             env["PLAN_ID"] = plan_id
+        if extra_env:
+            env.update(extra_env)
         return subprocess.run(
             ["sh", str(RESOLVE_SH)],
             cwd=str(cwd),
@@ -56,6 +74,51 @@ class ResolvePlanDirTests(unittest.TestCase):
             result = self.run_resolver(root, plan_id="alpha")
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertTrue(result.stdout.strip().endswith("alpha"))
+
+    def test_knot_planning_task_dir_takes_precedence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            knot_task = root / "workspace" / "users" / "member" / ".state" / "tasks" / "knot-task"
+            legacy_task = root / ".planning" / "legacy"
+            knot_task.mkdir(parents=True)
+            legacy_task.mkdir(parents=True)
+            (knot_task / "task_plan.md").write_text("# knot\n", encoding="utf-8")
+            (legacy_task / "task_plan.md").write_text("# legacy\n", encoding="utf-8")
+            result = self.run_resolver(
+                root,
+                plan_id="legacy",
+                extra_env={"KNOT_PLANNING_TASK_DIR": str(knot_task)},
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(str(knot_task), result.stdout.strip())
+
+    def test_knot_plan_id_uses_scope_aware_task_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            actor_workspace = root / "workspace" / "groups" / "product" / "work" / "member"
+            task = actor_workspace / ".state" / "tasks" / "scoped-task"
+            task.mkdir(parents=True)
+            (task / "task_plan.md").write_text("# scoped\n", encoding="utf-8")
+            result = self.run_resolver(
+                root,
+                plan_id="scoped-task",
+                extra_env={"KNOT_ACTOR_WORKSPACE": str(actor_workspace)},
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(str(task), result.stdout.strip())
+
+    def test_knot_active_task_file_uses_scope_aware_task_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            user_workspace = root / "workspace" / "users" / "member"
+            task_root = user_workspace / ".state" / "tasks"
+            task = task_root / "active-task"
+            task.mkdir(parents=True)
+            (task / "task_plan.md").write_text("# active\n", encoding="utf-8")
+            (task_root / ".active_task").write_text("active-task\n", encoding="utf-8")
+            result = self.run_resolver(root, extra_env={"KNOT_USER_WORKSPACE": str(user_workspace)})
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(str(task), result.stdout.strip())
 
     def test_active_plan_used_when_env_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
