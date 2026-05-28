@@ -125,6 +125,56 @@ class PlanAttestationTests(unittest.TestCase):
         result = self._run()
         self.assertNotEqual(0, result.returncode)
 
+    def test_concurrent_attest_writes_do_not_corrupt_file(self) -> None:
+        # v2.40 regression: parallel legacy-mode attestations used to race
+        # via a non-atomic `> file` redirect, occasionally yielding a
+        # truncated `.plan-attestation` (zero-length or partial hex) that the
+        # hook then read as the expected hash, producing a false TAMPERED on
+        # the next prompt. The fix is atomic temp+rename with an optional
+        # flock guard. This test spawns 8 concurrent attestations on the same
+        # plan file and asserts the resulting file is a complete 64-char hex
+        # SHA-256 every time.
+        import threading
+
+        plan = self.tmp / "task_plan.md"
+        plan.write_text("concurrent attestation target\n", encoding="utf-8")
+        expected = sha256_of(plan)
+
+        errors: list[str] = []
+        results: list[int] = []
+        lock = threading.Lock()
+
+        def worker() -> None:
+            res = self._run()
+            with lock:
+                results.append(res.returncode)
+                if res.returncode != 0:
+                    errors.append(res.stderr)
+
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=10)
+
+        self.assertFalse(errors, f"concurrent attest failures: {errors}")
+        self.assertEqual(8, len(results))
+
+        attest_file = self.tmp / ".plan-attestation"
+        self.assertTrue(attest_file.exists())
+        stored = attest_file.read_text().strip()
+        self.assertEqual(
+            64,
+            len(stored),
+            f"expected 64-char hex SHA, got {len(stored)} chars: {stored!r}",
+        )
+        self.assertEqual(
+            expected,
+            stored,
+            "stored hash must match the (unchanged) plan content even under "
+            "concurrent writes",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

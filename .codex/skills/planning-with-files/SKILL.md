@@ -23,7 +23,7 @@ hooks:
         - type: command
           command: "SD=\"${CODEX_SKILL_ROOT:-$HOME/.codex/skills/planning-with-files}/scripts\"; sh \"$SD/stop.sh\""
 metadata:
-  version: "2.37.0"
+  version: "2.43.0"
 
 ---
 

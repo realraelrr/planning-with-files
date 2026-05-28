@@ -213,6 +213,95 @@ class ResolvePlanDirTests(unittest.TestCase):
             self.assertEqual(0, env_result.returncode, env_result.stderr)
             self.assertTrue(active_result.stdout.strip().endswith("real"))
             self.assertTrue(env_result.stdout.strip().endswith("real"))
+    def test_corrupt_active_plan_whitespace_only_falls_through(self) -> None:
+        # Regression for v2.40: .active_plan filled with whitespace/newlines
+        # used to be normalized to an empty string by `tr -d`, leaving the
+        # resolver about to look up `.planning//task_plan.md`. The slug-validity
+        # check now rejects empty / whitespace-only content and falls through to
+        # the newest-mtime resolution path.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            real = root / ".planning" / "real"
+            real.mkdir(parents=True)
+            (real / "task_plan.md").write_text("# real plan\n", encoding="utf-8")
+            (root / ".planning" / ".active_plan").write_text("   \n\n   \n", encoding="utf-8")
+            result = self.run_resolver(root)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(
+                result.stdout.strip().endswith("real"),
+                f"expected fall-through to real, got {result.stdout!r}",
+            )
+
+    def test_corrupt_active_plan_with_path_separator_rejected(self) -> None:
+        # Regression for v2.40: a malicious or corrupt .active_plan containing
+        # a path separator (e.g. ../escape, ./.planning/foo) used to be passed
+        # directly to the candidate path, opening a path-traversal-shaped
+        # surface. The slug-validity check now rejects any plan-id with `/`,
+        # `..`, or leading-dot, falling through to newest-mtime.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            real = root / ".planning" / "real"
+            real.mkdir(parents=True)
+            (real / "task_plan.md").write_text("# real plan\n", encoding="utf-8")
+            (root / ".planning" / ".active_plan").write_text("../escape\n", encoding="utf-8")
+            result = self.run_resolver(root)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(
+                result.stdout.strip().endswith("real"),
+                f"expected fall-through to real, got {result.stdout!r}",
+            )
+
+    def test_env_plan_id_with_whitespace_rejected(self) -> None:
+        # Regression for v2.40: PLAN_ID env with whitespace or empty value must
+        # not bypass the slug check. Falls through cleanly.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            real = root / ".planning" / "real"
+            real.mkdir(parents=True)
+            (real / "task_plan.md").write_text("# real plan\n", encoding="utf-8")
+            result = self.run_resolver(root, plan_id="   ")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(result.stdout.strip().endswith("real"))
+
+    def test_latest_dir_scan_skips_invalid_slug_names(self) -> None:
+        # Regression for v2.40: dirs with non-safe names (path traversal,
+        # dotfiles, leading whitespace) must be skipped by the newest-mtime
+        # scan so a malicious .planning/..foo/ cannot win the resolution.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            good = root / ".planning" / "good"
+            good.mkdir(parents=True)
+            (good / "task_plan.md").write_text("# good\n", encoding="utf-8")
+            # A dot-prefixed dir; should be skipped by both the slug check
+            # AND the case .*) continue ;; guard.
+            sneaky = root / ".planning" / ".sneaky"
+            sneaky.mkdir(parents=True)
+            (sneaky / "task_plan.md").write_text("# sneaky\n", encoding="utf-8")
+            result = self.run_resolver(root)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(
+                result.stdout.strip().endswith("good"),
+                f"expected good, got {result.stdout!r}",
+            )
+
+    def test_dead_active_plan_target_falls_through(self) -> None:
+        # Regression for v2.40: .active_plan points to a dir that has been
+        # deleted. Resolver must fall through to newest-existing instead of
+        # printing the dead path.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            real = root / ".planning" / "real"
+            real.mkdir(parents=True)
+            (real / "task_plan.md").write_text("# real\n", encoding="utf-8")
+            (root / ".planning" / ".active_plan").write_text("deleted-plan\n", encoding="utf-8")
+            # Note: .planning/deleted-plan/ never created
+            result = self.run_resolver(root)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(
+                result.stdout.strip().endswith("real"),
+                f"expected real, got {result.stdout!r}",
+            )
+
 
 
 if __name__ == "__main__":

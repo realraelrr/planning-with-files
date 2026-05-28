@@ -104,6 +104,31 @@ These amazing people have contributed code, documentation, or significant improv
 
 ### Other Contributors
 
+- **[@Skulli485](https://github.com/Skulli485)** - [PR #171](https://github.com/OthmanAdi/planning-with-files/pull/171), [Issue #162](https://github.com/OthmanAdi/planning-with-files/issues/162)
+   - Authored the first `CONTRIBUTING.md` at the repo root, covering local setup, project layout, PR submission conventions, authorship and credit policy, language variant contribution rules, and where to ask questions
+   - A pre-merge follow-up commit by the maintainer removed a duplicated intro and a broken four-backtick code fence from the original diff
+   - **Impact:** new contributors now land on a dedicated guide auto-surfaced by GitHub in the PR creation flow, replacing the previous inference-based onboarding from `CLAUDE.md` and prior merged PRs
+
+- **[@carterusedulm2-maker](https://github.com/carterusedulm2-maker)** - [PR #169](https://github.com/OthmanAdi/planning-with-files/pull/169), [PR #170](https://github.com/OthmanAdi/planning-with-files/pull/170)
+  - PR #169: replaced the `[[ $# -gt 0 ]]` bashism in `init-session.sh` with POSIX `[ $# -gt 0 ]` across the 8 mirrored copies (canonical, `.codebuddy`, `.codex`, `.continue`, `.factory`, `.gemini`, `.pi`, top-level `scripts/`). The script's shebang is `#!/usr/bin/env bash`, but `tests/test_init_session_slug.py` invokes it via `["sh", str(INIT_SH), ...]` which bypasses the shebang and runs under `dash` on Ubuntu, where the `[[ ]]` syntax fails before any slug-mode logic can execute
+  - PR #170: documented a Topic Handoff Pattern in `docs/quickstart.md` and `docs/workflow.md` for splitting unrelated topics across `.planning/<slug>/` directories or a manual `handoffs/<topic>.md` detail layer alongside `progress.md`
+  - **Impact:** the test invocation through `sh` now runs cleanly across Linux distributions with non-bash `/bin/sh`; the documentation surfaces the slug-mode and handoff convention as the recommended workflow for parallel and long-running topics
+
+- **[@gauravvojha](https://github.com/gauravvojha)** - [PR #167](https://github.com/OthmanAdi/planning-with-files/pull/167), [Issue #166](https://github.com/OthmanAdi/planning-with-files/issues/166)
+  - Reported that `test_script_permissions.py` always failed on Windows because NTFS does not preserve POSIX executable bits
+  - Supplied the initial `pytest.mark.skipif(sys.platform == "win32")` patch for the two exec-bit tests
+  - **Impact:** The two pre-existing Windows exec-bit failures (present since v2.34.1) now skip cleanly on Windows, keeping the test suite green across all platforms
+
+- **[@CleanDev-Fix](https://github.com/CleanDev-Fix)** (CleanFix-Dev) - [PR #168](https://github.com/OthmanAdi/planning-with-files/pull/168), [Issue #165](https://github.com/OthmanAdi/planning-with-files/issues/165)
+  - Authored `docs/attestation-locking.md`, a dedicated page documenting the `attest-plan.sh` write path, the atomic temp-rename guarantee, the optional `flock` advisory lock, platform-specific fallback behavior, and the recommended slug-mode parallel workflow
+  - Wired the new page into the canonical `SKILL.md` Security Boundary section for discoverability
+  - **Impact:** Users on macOS and Windows Git Bash who hit the "flock not found" code path now have a clear explanation of why attestation still works and why slug-mode is preferred for concurrent sessions
+
+- **[@bmyury](https://github.com/bmyury)** - [Discussion #153](https://github.com/OthmanAdi/planning-with-files/discussions/153)
+  - Reported that the installed skill's description field appeared garbled in Claude Code, surfacing fragments of hook command output instead of the documented description
+  - Root cause: the `'---BEGIN PLAN DATA---'` and `'---END PLAN DATA---'` plan-injection delimiters embedded in hook commands collided with the `---` YAML document separator; Claude Code's skill-discovery loader split frontmatter on the literal `---` substring and truncated the description mid-string
+  - **Impact:** v2.38.1 swaps the delimiter shape to `===BEGIN PLAN DATA===` / `===END PLAN DATA===` across the canonical SKILL.md, all five language variants, the `.codebuddy/.codex/.cursor` adapter mirrors, and the `clawhub-upload` bundle. Same model-side framing semantics, no collision with the YAML separator
+
 - **[@oaabahussain](https://github.com/oaabahussain)** - [Issue #150](https://github.com/OthmanAdi/planning-with-files/issues/150), [Issue #151](https://github.com/OthmanAdi/planning-with-files/issues/151)
   - Issue #150: pointed out that the v2.36.1 BEGIN/END delimiters were a mitigation, not a guarantee, and proposed SHA-256 hash attestation so any silent edit to `task_plan.md` between user approval and hook injection trips a verifiable check
   - Issue #151: named the regression class behind v2.34.1, v2.36.0, v2.36.2, and v2.36.3 (parity-locked files updated by hand across 19 destinations) and proposed the right surgical fix: a single bumper script plus a CI parity test
@@ -213,6 +238,21 @@ These amazing people have contributed code, documentation, or significant improv
   - Changed shebangs from `/bin/bash` to `/usr/bin/env bash` across hook scripts
   - Fixes compatibility on systems like NixOS where bash is not at `/bin/bash`
 
+- **[@TomXPRIME](https://github.com/TomXPRIME)** - [PR #157](https://github.com/OthmanAdi/planning-with-files/pull/157), [PR #158](https://github.com/OthmanAdi/planning-with-files/pull/158)
+  - PR #157: brought the `.pi` adapter up to full hook parity with Claude Code by shipping a bundled TypeScript extension under `.pi/skills/planning-with-files/extensions/planning-with-files/`
+  - Mapped eight Pi lifecycle events to the same behavior the skill provides on Claude Code: `session_start` runs session catchup, `before_agent_start` injects plan context, `tool_call` adds pre-tool recitation, `tool_result` appends the post-write reminder, `agent_end` auto-continues incomplete plans with a per-session+plan limit of three, `session_before_compact` flushes the plan reminder with the active `Plan-SHA256`, `session_shutdown` clears loop timers and per-session state, `input` resets the auto-continue counter
+  - Added a four-mode system (`auto`, `parity`, `cache-safe`, `notify`) with DeepSeek auto-detection from `ctx.model.provider` and `ctx.model.id`, so cache-prefix-sensitive models keep their KV-cache stable
+  - Wired the existing v2.37 SHA-256 attestation gate into the Pi runtime so the same `.attestation` file locks the plan across both Claude Code and Pi
+  - Registered four slash commands (`/plan-status`, `/plan-attest`, `/plan-goal`, `/plan-loop`) mirroring their Claude Code counterparts
+  - Added 12 contract tests covering packaging, declared capabilities, and documentation strings; iterated through PRs #155 and #156 to land code-only and version-clean in #157
+  - PR #158: closed the Pi SKILL.md sync gap after v2.39.0 shipped. Backported Rule 7 (Continue After Completion), the Security Boundary section, the expanded Scripts section covering `set-active-plan.sh`/`resolve-plan-dir.sh`/`attest-plan.sh` and the parallel task workflow, and the "Write web content to task_plan.md" anti-pattern row. Renamed the npm package from the unscoped `pi-planning-with-files` to `@tomxprime/planning-with-files`, matching the package author's npm namespace. Rewrote the install docs to point at the scoped package and to use `pi install ./.pi/skills/planning-with-files` (local path) for manual installs. Removed the redundant manual session-catchup instruction since the Pi extension handles that lifecycle event automatically
+  - **Impact:** Pi adapter now ships at parity with Claude Code in both runtime behavior (PR #157) and instruction surface (PR #158). DeepSeek+Pi users get a cache-safe reminder path that does not invalidate the KV-cache prefix on every turn, and the npm publishing chain is now under the scoped namespace of the package author
+
+- **[@DLI1996](https://github.com/DLI1996)** - [Issue #154](https://github.com/OthmanAdi/planning-with-files/issues/154)
+  - Caught that `docs/codex.md` instructed users to set `codex_hooks = true` in `~/.codex/config.toml`, while OpenAI's current Codex hooks docs (developers.openai.com/codex/hooks) now make `hooks` the canonical key and `codex_hooks` a deprecated alias
+  - Linked the upstream OpenAI page so the canonical key change was easy to verify
+  - **Impact:** v2.39.0 swaps the docs to `hooks = true` in four sites with an alias note, so new users get the canonical key while users on older configs are not pushed to migrate
+
 ## Community Forks
 
 These developers have created forks that extend the functionality:
@@ -236,6 +276,7 @@ Thank you to everyone who reported issues, provided feedback, and helped test fi
 - [@tingles2233](https://github.com/tingles2233) - Issue #29 (Plugin update issues)
 - [@st01cs](https://github.com/st01cs) - Issue #28 (Devis fork discussion)
 - [@wqh17101](https://github.com/wqh17101) - Issue #11 testing and confirmation
+- [@luyanfeng](https://github.com/luyanfeng) - Issue #172 (OpenCode install/verify paths doubled the folder segment in docs/opencode.md; fixed in v2.43.0)
 
 And many others who have starred, forked, and shared this project!
 
@@ -263,6 +304,6 @@ If you've contributed and don't see your name here, please open an issue! We wan
 
 ---
 
-**Total Contributors:** 40+ and growing!
+**Total Contributors:** 44+ and growing!
 
-*Last updated: May 1, 2026*
+*Last updated: May 26, 2026*

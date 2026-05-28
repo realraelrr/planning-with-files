@@ -2,6 +2,217 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.43.0] - 2026-05-26
+
+### Added
+
+- **CONTRIBUTING.md at repo root** (PR #171 by @Skulli485, closes issue #162): first-time contributor guide covering local setup, project layout, PR submission conventions, authorship and credit policy, language variant contribution rules, and where to ask questions. Pre-merge follow-up commit removed a duplicated intro and a broken code fence that the original diff carried. GitHub auto-surfaces the file in the PR creation flow now.
+
+### Fixed
+
+- **OpenCode docs broken install/verify paths** (Issue #172 by @luyanfeng): `docs/opencode.md` referenced `planning-with-files/planning-with-files/SKILL.md` (doubled folder segment) in the manual-install block, the `cat` usage block, and both verification `ls` commands. The path assumed a full-repo clone into the skills directory rather than a direct file copy of the `.opencode/skills/planning-with-files/` subtree. v2.43.0 replaces the manual-install Quick Install with `npx skills add` (matching every other IDE doc) and rewrites the manual-install and verification commands so the path resolves to the single-level location where the skill actually lands. OpenCode session-catchup note updated to point at the SQLite store path the v2.38.0 rewrite introduced, replacing the stale "Full ... support is planned for a future release" line.
+
+- **`.continue` variant SKILL.md sync gap from v2.34.0 to v2.43.0** (Issue #159): nine versions behind canonical. v2.43.0 ports Rule 7 (Continue After Completion), the Security Boundary section with delimiter framing and hash attestation, the expanded Scripts section listing `init-session.sh`/`set-active-plan.sh`/`resolve-plan-dir.sh`/`check-complete.sh`/`session-catchup.py`/`attest-plan.sh` plus the parallel task workflow block, the "Write web content to task_plan.md" Anti-Pattern row, and the 5-Question Reboot Test. Continue-specific items preserved: `.continue/skills/...` script paths, session-catchup invocation shape. The v2.34.0 Security Boundary table removed (canonical version supersedes it with delimiter/attestation coverage). File grew from 92 to 179 lines.
+
+- **`.gemini` variant SKILL.md sync gap from v2.34.0 to v2.43.0** (Issue #160): nine versions behind canonical. v2.43.0 ports the same canonical content as `.continue` plus the parallel task workflow and 5-Question Reboot Test. Gemini-specific items preserved: `hooks: "Configured in .gemini/settings.json (SessionStart, BeforeTool, AfterTool, BeforeModel)"` metadata key. The Claude-specific Turn-Loop Integration section is omitted because Gemini CLI has no `/plan-goal`, `/plan-loop`, or `PreCompact` hook primitive; the Gemini-specific Security Boundary section references Gemini lifecycle hooks instead. File grew from 179 to 199 lines.
+
+- **`.kiro` variant SKILL.md sync gap from v2.32.0-kiro to v2.43.0-kiro** (Issue #161): eleven versions behind canonical. v2.43.0 ports Rule 7, the expanded Scripts section (bootstrap, session-catchup, check-complete), the Anti-Patterns table, and the 5-Question Reboot Test. Kiro-specific items preserved: `metadata.integration: kiro` field, Agent Skill layout, `compatibility:` frontmatter key, STEP 0/1/2/3 structure, `.kiro/steering/` references, `#[[file:.kiro/plan/…]]` live references, and `assets/scripts/` path convention. Version kept as `2.43.0-kiro` per the original suffix convention.
+
+### Changed
+
+- Version bumped to 2.43.0 across 17 parity-locked files via `scripts/bump-version.py`. The three lagging variants (`.continue`, `.gemini`, `.kiro`) were synced manually in this release; `.pi` remains intentionally on the npm scheme (`1.1.0` in `package.json`) per AGENTS.md.
+
+### Verification
+
+- Test count: 130 pass, 2 skip (Windows exec-bit, pre-existing baseline since v2.34.1), 0 fail. PR #171 adds markdown only; the v2.43.0 fix for `docs/opencode.md` touches no executable paths; `.continue`, `.gemini`, and `.kiro` SKILL.md rewrites are read by the model at runtime, not parsed by the test suite. The parity test (`test_skill_md_version_parity.py`) continues to validate the 17-file parity set without drift.
+
+### Thanks
+
+- @Skulli485 for the CONTRIBUTING.md draft (PR #171), first contribution to the repo.
+- @luyanfeng for reporting the OpenCode docs path bug (issue #172), first contribution to the repo.
+
+## [2.42.0] - 2026-05-25
+
+### Fixed
+
+- **POSIX `init-session.sh` portability across the 8 mirrors** (PR #169 by @carterusedulm2-maker): the script's shebang is `#!/usr/bin/env bash`, but `tests/test_init_session_slug.py:27` invokes it via `["sh", str(INIT_SH), *args]` which bypasses the shebang and runs the body under whatever `sh` resolves to. On Ubuntu and Debian where `/bin/sh` is `dash`, the `while [[ $# -gt 0 ]]` bashism failed with a syntax error before any slug-mode argument parsing could run. v2.42.0 swaps to POSIX `while [ $# -gt 0 ]` in the 8 mirrored copies: `scripts/init-session.sh` (top level), `skills/planning-with-files/scripts/init-session.sh` (canonical), and the `.codebuddy`, `.codex`, `.continue`, `.factory`, `.gemini`, `.pi` adapter copies. Behavior is identical under bash; the change only restores compatibility under dash so the slug-mode test suite runs portably.
+
+### Added
+
+- **Install-scope transparency block in canonical `SKILL.md`** (Turn-Loop Integration section). Documents which install route ships which surface: `/plugin install` includes the `commands/` folder with `/plan-goal` and `/plan-loop`, but `npx skills add` (and ClawHub) install only the contents of `skills/planning-with-files/` and therefore do not register the wrapper slash commands. The `PreCompact` hook is registered in the SKILL.md frontmatter and works for both routes. Also notes the `disable-model-invocation: true` interaction tracked in upstream issues anthropics/claude-code #26251 and #41417, where some Claude Code sessions refuse to execute the slash command even when the user types it directly.
+- **Manual fallback procedure** for `/plan-goal` and `/plan-loop` inline in the canonical `SKILL.md`. The procedures mirror what the `commands/plan-goal.md` and `commands/plan-loop.md` files would have fed the model when invoked: resolve the active plan, compose the goal condition or loop tick prompt, then issue Claude Code's native `/goal` or `/loop` primitive (always available, not plugin-scoped). Lets skill-only installs and sessions affected by the disable-model-invocation refusal pattern produce the same effect by following the steps inline.
+
+### Docs
+
+- **Topic Handoff Pattern documentation in `docs/quickstart.md` and `docs/workflow.md`** (PR #170 by @carterusedulm2-maker): documents an optional convention for splitting unrelated topics across `.planning/<slug>/` directories or a manual `handoffs/<topic>.md` detail layer alongside `progress.md`. The pattern is documentation-only; no shipped script reads `handoffs/`. Recommended for long-running operational topics that span multiple sessions, where keeping `progress.md` concise as a timeline index and putting durable detail (current state, commands, validation, risks, rollback, PR links) in a per-topic handoff file is easier to navigate after a `/clear`.
+- **README releases table row for v2.42.0** plus version badge bumped to 2.42.0.
+
+### Changed
+
+- Version bumped to 2.42.0 across 17 parity-locked files (14 SKILL.md variants plus `plugin.json`, `marketplace.json`, `CITATION.cff`) via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally per AGENTS.md release scope.
+
+### Verification
+
+- Test count: 130 pass, 2 skip (Windows exec-bit, pre-existing baseline since v2.34.1), 0 fail. PR #169 changes shell-only string syntax across mirrored scripts; PR #170 adds markdown only. Neither touches hooks, attestation, the resolver, or any script-execution path. Security audit completed 2026-05-25 (see `.planning/2026-05-25-security-audit/findings.md`): semgrep 0 findings, no preinstall/postinstall hooks anywhere, no remote fetches, SLUG_RE path-traversal defense parity confirmed across the 14 SKILL.md variants.
+- Web research basis for the transparency block: Anthropic skill docs at `code.claude.com/docs/en/skills` confirm that prompt-based slash commands are the blessed Claude Code pattern (matches bundled skills like `/loop`, `/goal`, `/run`, `/verify`, `/debug`). Quote: "Unlike most built-in commands, which execute fixed logic directly, bundled skills are prompt-based: they give Claude detailed instructions and let it orchestrate the work using its tools." The `commands/` and `skills/` directories are now unified per Anthropic: "Custom commands have been merged into skills." Plugin scope still distinguishes installation surface from `npx skills add`.
+
+### Thanks
+
+- @carterusedulm2-maker for both the POSIX init-session compatibility fix (PR #169) and the Topic Handoff workflow documentation (PR #170). Both filed on 2026-05-25, first contributions to the repo.
+
+## [2.41.0] - 2026-05-24
+
+### Fixed
+
+- **Windows POSIX exec-bit tests now skip on NTFS** (PR #167 by @gauravvojha, Issue #166): `test_script_permissions.py` relied on POSIX executable bits which NTFS does not preserve. The two tests in the `CanonicalScriptPermissionsTests` class (`test_shell_scripts_are_executable`, `test_session_catchup_is_executable`) ran fine on Linux and macOS but always failed on Windows with `mode: 0o100666`. v2.41.0 adds a class-level `@pytest.mark.skipif(sys.platform == "win32")` decorator so the tests skip cleanly on Windows while still running on POSIX file systems. The upstream PR patch introduced a malformed duplicate standalone function at module scope and a nested method inside it; the fix was corrected to class-level granularity during merge.
+- **Post-merge test-file repair** (follow-up to PR #167): the squash-merged patch from PR #167 left `tests/test_script_permissions.py` in a broken state at `ed43a71`. The standalone-function duplicate and nested class method were removed, imports re-sorted, and the class-level `pytest.mark.skipif` re-applied correctly. No test logic changed.
+
+### Added
+
+- **`docs/attestation-locking.md`**: new documentation page covering the `scripts/attest-plan.sh` write path, the atomic temp-rename correctness guarantee, the optional `flock` advisory lock, a platform behavior table (Linux, macOS, Windows Git Bash, WSL), and the recommended slug-mode workflow for parallel sessions. Linked from the canonical `SKILL.md` Security Boundary section for discoverability. (PR #168 by @CleanDev-Fix, Issue #165)
+
+### Changed
+
+- Version bumped to 2.41.0 across 17 parity-locked files (14 SKILL.md variants plus `plugin.json`, `marketplace.json`, `CITATION.cff`) via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally per AGENTS.md release scope.
+
+### Verification
+
+- Test count: 130 pass, 2 skip (Windows exec-bit tests), 0 fail. PR #167 touches only `tests/test_script_permissions.py`; PR #168 adds `docs/attestation-locking.md` plus a two-line SKILL.md link. Neither PR touches hook bodies, canonical scripts, or the attestation mechanism.
+
+### Thanks
+
+- @gauravvojha for reporting the Windows exec-bit failure in Issue #166 and supplying the first-pass fix in PR #167.
+- @CleanDev-Fix (CleanFix-Dev) for the attestation-locking documentation in PR #168, which closes Issue #165.
+
+## [2.40.1] - 2026-05-22
+
+### Fixed
+
+- **Pi adapter SKILL.md sync gap** (PR #158 by @TomXPRIME): the `.pi/skills/planning-with-files/SKILL.md` variant lagged the canonical Claude Code copy after v2.39.0 shipped. Four pieces of surface were missing on Pi: Rule 7 (Continue After Completion) covering multi-cycle plan extension when the user requests additional work, the Security Boundary section documenting the BEGIN/END delimiter framing plus the v2.37 hash attestation defense layers, the expanded Scripts section covering `set-active-plan.sh`, `resolve-plan-dir.sh`, `attest-plan.sh`, and the parallel task workflow, and the "Write web content to task_plan.md" anti-pattern row. v2.40.1 backports all four items so Pi users get the same instruction surface as Claude Code users. The redundant manual session-catchup instruction in the Pi SKILL.md is removed because the Pi extension shipped in v2.39.0 handles that lifecycle event automatically.
+- **Pi npm package scope correction** (PR #158): `.pi/skills/planning-with-files/package.json` `name` field was set to the unscoped `pi-planning-with-files`. Tom owns the npm publishing chain for the Pi package; the unscoped form had ownership ambiguity. v2.40.1 renames to `@tomxprime/planning-with-files`, matching the package author's npm namespace. Author "Ahmad Othman Ammar Adi", repository URL, license, and bugs URL are preserved. No new dependencies, no preinstall or postinstall scripts, no new bin entries, no new files; only the `name` field changed.
+- **Pi install docs updated** (PR #158): `.pi/skills/planning-with-files/README.md` install command updated to `pi install npm:@tomxprime/planning-with-files`. The manual install section is rewritten to use `pi install ./.pi/skills/planning-with-files` (local path) or a `.pi/settings.json` `packages` entry, replacing the previous "copy the folder into your skills dir then `/reload`" prose. SKILL.md cross-references updated to match.
+
+### Changed
+
+- Version bumped to 2.40.1 across the 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff` via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally per CLAUDE.md release scope.
+
+### Verification
+
+- Test count: 130 pass / 2 pre-existing Windows exec-bit failures (test_script_permissions, unchanged from v2.40.0 and unrelated to this release). PR #158 changes the Pi adapter doc surface and `package.json` `name`; the Pi extension TypeScript runtime, hook bodies, and canonical Claude Code surface are not touched. Safety audit on the PR confirmed no supply-chain attack vectors: no new dependencies, no install hooks, no bin shims, no new files, author and repository metadata preserved.
+
+### Thanks
+
+- @TomXPRIME: second contribution after the Pi full hook parity extension in v2.39.0. The Pi adapter is now actively maintained by its author, with the npm publishing chain pointing at his scoped namespace and the SKILL.md surface kept in sync with the canonical Claude Code copy.
+
+## [2.40.0] - 2026-05-21
+
+### Fixed
+
+- **Hook resolution order inverted: slug-mode now wins over legacy root** (item #1 in `proposal_v2_40.md`). Before v2.40, every hook body in `SKILL.md` checked `if [ -f task_plan.md ]` at the project root FIRST and only consulted `.planning/.active_plan` for attestation lookup, never for content lookup. When both a root `task_plan.md` and a slug-mode plan existed, the root plan silently won and the user's explicitly-active slug plan was bypassed. v2.40 rewrites the resolution chain across `UserPromptSubmit`, `PreToolUse`, and `PreCompact` so they consult `$PLAN_ID` env, then `.planning/.active_plan`, then newest `.planning/<slug>/` by mtime, and only fall back to root `task_plan.md` if no slug-mode plan resolves. Legacy single-file users keep working; parallel-plan users get the plan they actually pinned.
+- **`.active_plan` target dir validated before use** (item #2). If `.active_plan` content points to a deleted plan dir, the hook used to silently no-op because the outer `if [ -f task_plan.md ]` only checked root. v2.40 falls through to the newest-mtime resolution path, then root, instead of leaving the model with no context.
+- **`.active_plan` content validated against a safe-identifier regex** (item #3). `tr -d '[:space:]'` normalized whitespace-only content to an empty string, which the hook then concatenated into `.planning//task_plan.md` (an empty plan id). v2.40 enforces `^[A-Za-z0-9_][A-Za-z0-9._-]*$` on both `$PLAN_ID` env and `.active_plan` content, so corruption (whitespace, path traversal like `../escape`, leading-dot dotfile names) falls through to the next resolution step instead of producing weird path lookups.
+- **`check-complete.sh` honors `$PLAN_ID` and `.active_plan`** (item #4). The Stop hook passed `.planning/$AP/task_plan.md` explicitly so the bug was silent there, but any user invocation or third-party tooling that called `check-complete.sh` with no args saw "No task_plan.md found" even with an active slug plan. v2.40 wires the script into `resolve-plan-dir.sh` when no explicit path argument is passed, restoring slug-mode parity. Behavior with an explicit path argument is unchanged.
+- **Pi extension dangerous-command list uses word-boundary regex** (item #5). `runtime.ts` `isDangerousBashCommand` used substring matching against a flat list including `"git push"`. Every benign `git push origin <branch>` fired the warning, training users to ignore it. v2.40 replaces the substring list with a `DANGEROUS_BASH_PATTERNS` regex array: `\brm\s+-[a-z]*r[a-z]*f\b`, `\bsudo\b`, `\bchmod\s+(0?777|a\+rwx)\b`, `\bgit\s+push\s+.*(--force|-f\b|--mirror|\+)`, `\bgit\s+reset\s+--hard\b`, `\bgit\s+clean\s+-[a-z]*[fdx]`, a shell fork-bomb pattern, and `\bdd\s+.*of=/dev/[sh]d[a-z]`. Benign `git push` no longer triggers the notify; only destructive variants do.
+
+### Performance
+
+- **mtime-keyed SHA-256 cache in attestation hook** (item #6). Each `UserPromptSubmit` and `PreToolUse` hook previously ran a fresh `sha256sum` on `task_plan.md` to compare against the stored attestation. On Windows Git Bash this is ~800ms per fire dominated by bash spawn and disk I/O; over a 60-event session that is ~48 seconds of cumulative latency. v2.40 caches the result under `${TMPDIR:-/tmp}/pwf-sha/<key>` keyed by the absolute plan-file path, storing `mtime` and the hash. On the next fire, if the plan file's mtime is unchanged, the cached hash is reused without re-running `sha256sum`. The cache is per-system, transient, and invalidated automatically by any plan edit.
+- **KV-cache hygiene on injected progress.md tail** (item #7). The Manus-aligned auto-injection feature is most valuable when the Claude / Sonnet / Opus prefix cache stays warm across turns. The previous injection embedded the literal `tail -20 progress.md`, including sub-second timestamps and timezone-suffix forms that change every fire. Those bytes mid-prefix prevented cache reuse. v2.40 pipes the tail through `sed -E` to normalize `T<HH:MM:SS>(.<frac>)?Z` and `T<HH:MM:SS>(.<frac>)?(+|-)HH:MM` to a stable `T00:00:00Z` / `T00:00:00<TZ>` form before injection. The model still sees recent progress structure; only the volatile sub-fields are collapsed.
+
+### Portability
+
+- **`resolve-plan-dir.sh` uses portable mtime fallback chain** (item #19). The old `date -r FILE +%s || stat -c '%Y' FILE || echo 0` chain silently fell to `0` on systems lacking GNU coreutils (some Windows Git Bash builds, alpine busybox, restricted CI containers). When mtime resolves to `0` for every dir in `.planning/*/`, the newest-by-mtime resolution becomes order-dependent on directory listing rather than actual recency. v2.40 extends the chain to: GNU `stat -c '%Y'`, BSD `stat -f '%m'`, `date -r FILE +%s`, `python3 -c ... os.stat`, `python -c ... os.stat`, `perl -e ... (stat $f)[9]`, then `0`. The earlier paths cover GNU + BSD + macOS + Windows Git Bash + Alpine + WSL; the python/perl fallbacks cover everything else with a runtime cost only paid when the native shell tools are absent.
+- **`attest-plan.sh` uses atomic temp-rename with optional `flock` guard** (item #20). Concurrent legacy-mode attestations (two sessions in the same cwd with no `PLAN_ID`) used to race on a non-atomic `> .plan-attestation` redirect, occasionally producing a truncated or zero-length attestation that the hook then read as the expected hash and threw a false `[PLAN TAMPERED]` on the next prompt. v2.40 writes to a `.plan-attestation.tmp.<pid>` and renames into place, with `flock -w 5` around the rename when `flock` is available. The atomic-rename guarantee is the real fix; the flock is the cooperative gate against multi-writer disk-stall edge cases. The script also surfaces a one-line note when legacy-mode attestation activity is detected within 30 seconds of a prior write, pointing users to slug-mode for parallel sessions.
+
+### Verification
+
+- Test count: 130 pass / 2 pre-existing Windows exec-bit failures (test_script_permissions, unchanged from v2.39.0 and unrelated to this release). +20 new tests vs v2.39.0: 5 in `tests/test_resolve_plan_dir.py` covering corruption + dead-target + invalid-slug-scan, 5 in `tests/test_check_complete_resolver.py` covering the resolver wire-up, 1 concurrent-writer test in `tests/test_plan_attestation.py`, 1 word-boundary contract test in `tests/test_pi_extension_capabilities.py`, 8 hook-body behavioral tests in `tests/test_hook_body_v240.py` covering slug-beats-root, legacy-root, silent no-plan, corrupt-active-plan fall-through, SHA cache population, tamper-still-blocks, progress-timestamp normalization, and PreToolUse injection.
+- Hook body now ~3.2 KB single-line bash per event (up from ~1 KB in v2.39.0). Same idiom as the existing inline pattern. Long-term extract to `scripts/inject-plan-context.sh` is tracked as v2.41-class work in `proposal_v2_40.md`.
+
+### Changed
+
+- Version bumped to 2.40.0 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, `CITATION.cff` via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally.
+
+### Not changed (deliberate)
+
+- No brainstorm-before-plan gate (item #8 in `proposal_v2_40.md`). Deferred to a later release because it changes user-facing workflow shape and deserves its own focused cycle.
+- No new sidecar files (`decisions.md`, `lessons.md`, `await_approval.md`, dispatch queue, checkpoints). All deferred to v2.41 or v3.0 per the proposal.
+- No refactor of the canonical hook body into a dedicated script (item #17). The inline pattern is preserved; the new logic ships within the same single-line idiom. This is acknowledged as maintenance debt and tracked for v2.41.
+
+## [2.39.0] - 2026-05-21
+
+### Added
+
+- **Pi Coding Agent full hook parity extension** (PR #157 by @TomXPRIME): the `.pi/skills/planning-with-files/` adapter previously shipped only the markdown skill, with a docs note that hook-style automation was Claude Code specific and not available on Pi. v2.39.0 ships a bundled TypeScript extension under `.pi/skills/planning-with-files/extensions/planning-with-files/` that maps Pi lifecycle events onto the same behavior the skill provides on Claude Code. Event surface: `session_start` runs session catchup, `before_agent_start` injects plan context, `tool_call` adds pre-tool recitation, `tool_result` appends the post-write reminder to write/edit outputs, `agent_end` auto-continues incomplete plans (limit 3 per session+plan), `session_before_compact` flushes the plan reminder with the active `Plan-SHA256`, `session_shutdown` clears loop timers and per-session state, `input` resets the auto-continue counter on user activity. The extension declares itself via `pi.extensions` in `.pi/skills/planning-with-files/package.json` so `pi install npm:pi-planning-with-files` auto-loads it.
+- **Pi mode system** (PR #157): four modes select how the extension talks to the model. `auto` (default) reads the active model's provider plus id, picks `cache-safe` when DeepSeek is detected, picks `parity` otherwise. `parity` reproduces the full Claude-style dynamic injection (plan content varies per fire). `cache-safe` swaps the dynamic content for fixed reminder strings so the DeepSeek KV-cache prefix stays stable across turns. `notify` surfaces the reminder via `ctx.ui.notify` only, never adds tokens to the model input. Configurable via `PWF_MODE` env var, project `.pi/settings.json`, or global `~/.pi/agent/settings.json` under the `planningWithFiles.mode` key.
+- **Pi attestation gate** (PR #157): the Pi extension reads the same `.planning/<active-plan>/.attestation` file the canonical v2.37 `attest-plan.sh` writes. On every hook fire it recomputes the SHA-256 of `task_plan.md` and compares against the stored hash. On mismatch the extension blocks injection and emits the `[PLAN TAMPERED]` warning with the expected and actual hashes plus the path to re-approve. Source of truth is shared with Claude Code, so attesting once locks the plan across both runtimes.
+- **Pi slash commands** (PR #157): four commands registered through `pi.registerCommand` mirror their Claude Code counterparts. `/plan-status` prints active plan path, scope, phase totals. `/plan-attest [--show|--clear]` runs the canonical attest helper (`.ps1` on Windows, `.sh` on POSIX), surfacing the result through `ctx.ui.notify`. `/plan-goal <text|default|clear>` sets a termination criterion that the auto-continue path appends to its prompt; `default` resolves to the canonical "all phases complete" condition. `/plan-loop [interval] [prompt|stop]` sets up a `setInterval` tick that re-reads the plan and nudges progress, with `stop` and `session_shutdown` both clearing the timer.
+- **`.pi/skills/planning-with-files/package.json`**: declares the new `pi.extensions` array, adds `peerDependencies` for `@earendil-works/pi-coding-agent`, bumps the npm scheme to `1.1.0` to reflect the extension surface addition (npm scheme remains independent of the canonical 2.x version).
+- **`docs/cache-safe-diagram.md`**: ASCII diagram showing how cache-safe mode keeps the KV-cache prefix stable across turns for DeepSeek and other prefix-sensitive models.
+- **`tests/test_pi_extension_packaging.py`** (3 tests): asserts the `.pi` package.json declares `pi.extensions`, the extension entrypoint exists, and the extension directory carries all required source files.
+- **`tests/test_pi_extension_capabilities.py`** (5 tests): asserts the runtime registers the four documented commands, declares all eight expected event handlers, and exposes the documented mode enum.
+- **`tests/test_pi_docs_hook_support.py`** (4 tests): asserts the Pi docs no longer carry the "hooks are Claude Code specific" disclaimer, the SKILL.md surface lists the new commands, and the README documents the mode system.
+
+### Fixed
+
+- **Codex `[features]` flag name** (Issue #154 by @DLI1996): `docs/codex.md` instructed users to add `codex_hooks = true` under `[features]` in `~/.codex/config.toml`. OpenAI updated the canonical Codex hooks docs (developers.openai.com/codex/hooks) to make `hooks` the canonical key and `codex_hooks` a deprecated alias. v2.39.0 swaps the docs to `hooks = true` in four sites (introductory callout, the "Enable Hooks in config.toml" code block plus its follow-up prose, and the troubleshooting checklist), and adds a one-line note in each spot that `codex_hooks = true` still works as a deprecated alias so users on older configs are not pushed to migrate. Verification command updated to `rg '^(hooks|codex_hooks)\s'`.
+
+### Changed
+
+- Version bumped to 2.39.0 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff` via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally; `.pi` carries its own npm scheme bump (1.0.1 to 1.1.0) inside `.pi/skills/planning-with-files/package.json` for the extension surface addition.
+
+### Verification scope
+
+- Python contract tests (110 pass, 2 pre-existing Windows exec-bit fails unrelated to this release) cover the Pi extension's packaging, declared event surface, declared command surface, and documentation. The TypeScript runtime itself runs only when loaded by a live Pi Coding Agent process. Behavior under Pi was validated by the PR author; no CI runtime test exists for the Pi extension code path. Pi-specific regressions should be filed as new issues against `.pi/skills/planning-with-files/extensions/`.
+
+### Thanks
+
+- @TomXPRIME for the Pi full hook parity extension (PR #157). Lifecycle event mappings, mode system, attestation gate, four slash commands, and 12 contract tests, iterated through PRs #155 and #156 to land code-only in #157.
+- @DLI1996 for catching the Codex `[features]` flag drift against OpenAI's canonical docs (Issue #154).
+
+## [2.38.1] - 2026-05-16
+
+### Fixed
+
+- **Description field garbled in Claude Code skill picker** (surfaced by @bmyury via Discussion #153): the canonical SKILL.md frontmatter declares hooks inline as YAML scalars. Several of those scalars contain `'---BEGIN PLAN DATA---'` and `'---END PLAN DATA---'` as plan-injection delimiters (introduced in v2.36.1, reinforced in v2.37 attestation). Frontmatter parsers that split on the literal string `---` to locate the closing fence read the first `---` inside a hook command as the fence, truncating the YAML mid-string. Claude Code's skill-discovery loader behaves this way, so the description shown in the in-product skill list was a fragment of the hook command tail (`BEGIN PLAN DATA---'; head -50 task_plan.md...`) instead of the documented description. Real YAML parsers handled the frontmatter correctly, so hook execution and tamper attestation were never affected; only the displayed metadata was wrong. v2.38.1 swaps the delimiter shape from `---BEGIN PLAN DATA---` / `---END PLAN DATA---` to `===BEGIN PLAN DATA===` / `===END PLAN DATA===` across the canonical SKILL.md, all five language variants, the `.codebuddy`, `.codex`, `.cursor` adapter mirrors, and the `clawhub-upload` bundle. Same delimiter shape, same model-side framing semantics; the `===` substring does not collide with YAML's document separator.
+
+### Changed
+
+- Version bumped to 2.38.1 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff` via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally.
+- Pre-existing line-ending drift in IDE adapter mirrors (`examples.md`, `attest-plan.sh`, `attest-plan.ps1` under `.codex`, `.cursor`, `.gemini`, `.opencode`, `.pi`) normalized to LF via `scripts/sync-ide-folders.py`. 12 files touched, content identical to canonical.
+
+### Thanks
+
+- @bmyury for surfacing the description display bug via Discussion #153.
+
+## [2.38.0] - 2026-05-14
+
+### Added
+
+- **PreCompact hook**: a new hook event fires on Claude Code's autoCompact and manual `/compact`. When `task_plan.md` is present, the hook surfaces a reminder to flush in-context progress to `progress.md` before compaction completes, and prints the active `Plan-SHA256` if an attestation is set. Added to the canonical SKILL.md plus all five language variants plus `clawhub-upload`. Other IDE mirrors fall back to their pre-existing compaction-related hooks (Codex `/compact` callback, OpenCode `session.compacted`, Hermes `pre_llm_call`) until per-IDE PreCompact adapters land in a later release.
+- **`/plan-goal` slash command**: composes with Claude Code's new `/goal` primitive (v2.1.139, May 12 2026). Derives a goal condition from the active plan (`all phases in task_plan.md report Status: complete`) and forwards it to `/goal` so the agent keeps working until the plan-file is genuinely done, not just when the conversation looks done. Plan-loop and plan-goal are intentionally composable: cadence + termination criterion.
+- **`/plan-loop` slash command**: composes with Claude Code's `/loop` primitive (v2.1.72+). Default 10-minute tick re-reads the planning files, runs `check-complete`, and nudges an entry into `progress.md` if nothing has changed since the last tick. Override interval and prompt as you would with bare `/loop`.
+- **`templates/loop.md`**: a planning-aware default prompt users can copy into `.claude/loop.md` (project) or `~/.claude/loop.md` (user) so bare `/loop` runs grounded in the active plan. `/loop` only reads these two paths; copy is required, not auto-wired.
+- **OpenCode SQLite session catchup**: the skill's session-catchup script reads OpenCode's new SQLite store at `${XDG_DATA_HOME:-~/.local/share}/opencode/opencode.db` (sst/opencode dev @ 2026-05-14, schema: `session(id, directory, time_created, ...)` + `part(id, session_id, time_created, data TEXT JSON)`). The previous JSON-tree reader silently no-op'd for every OpenCode user since the storage migration. Now opens the DB read-only via URI (`file:<path>?mode=ro`), scopes by `session.directory`, and surfaces the most recent unsynced planning-file edits with the same UX as the Claude Code path. Defensive `PRAGMA table_info` probe degrades cleanly on schema migrations. Verified end-to-end against a real 162 MB OpenCode database on the development machine (94 sessions, correctly extracted 56 unsynced parts from a session with planning-file edits).
+- **Codex `PermissionRequest` adapter**: Codex added a `PermissionRequest` hook event for tool-permission prompts. The new `.codex/hooks/permission_request.py` adapter surfaces a one-line reminder to review `task_plan.md` before approving a request, when an active plan is present. Session-attachment gated (legacy default-on, isolation opt-in). Read-only; never blocks the request.
+- **SKILL.md body documentation**: a new "Claude Code Turn-Loop Integration (v2.38.0+)" section documents the PreCompact hook, `/plan-goal`, `/plan-loop`, and the `loop.md` template install. Surfaces v2.38 features in user-facing prose, not only frontmatter.
+- **`clawhub-upload/` full sync**: the ClawHub upload bundle had drifted from canonical somewhere around v2.32 (missing slug-mode, set-active-plan, resolve-plan-dir, attest-plan scripts, BEGIN/END injection delimiters, hash attestation hook bodies). Re-synced from canonical so the manual ClawHub upload reflects current v2.38 state.
+- **`tests/test_precompact_hook.py`** (6 tests): asserts the PreCompact hook is declared with a wildcard matcher, stays silent without `task_plan.md`, emits the reminder when the plan exists, surfaces `Plan-SHA256` only when an attestation file is set, and exits 0 on every code path.
+- **`tests/test_v238_command_files.py`** (7 tests): asserts `commands/plan-goal.md`, `commands/plan-loop.md`, and `templates/loop.md` exist, carry the expected frontmatter, document the `/goal` 4000-char limit, and reference all three planning files.
+- **`tests/test_session_catchup_opencode.py`** (4 tests): builds a synthetic `opencode.db` matching the live schema, asserts the catchup function finds the most recent planning-file edit, stays silent when no plan edit is present, and degrades silently when the DB is missing.
+
+### Changed
+
+- Version bumped to 2.38.0 across 14 SKILL.md variants, `plugin.json`, `marketplace.json`, and `CITATION.cff` via `scripts/bump-version.py`. `.continue`, `.gemini`, `.pi`, `.kiro` lag intentionally.
+- Canonical session-catchup script propagated to `.codebuddy`, `.codex`, `.continue`, `.factory`, `.gemini`, `.opencode`, `.pi` via `scripts/sync-ide-folders.py`.
+
+### Not changed (deliberate)
+
+- **No `paths` glob restriction in the canonical SKILL.md frontmatter.** The Claude Code spec now supports a `paths` field that filters auto-invocation to matching file types. Adding it would silently change auto-invocation behavior for the existing install base. Deferred to a later release with explicit signal data.
+- **No bulk replacement of inline hook bodies with `!command` substitution.** That substitution runs at skill-load time, not per hook fire. Wholesale swap would freeze the SHA-256 attestation hash at load time and silently disable v2.37's tamper-detection gate. Inline hook bodies retained for per-fire runtime checks.
+- **No native Plan Mode panel integration.** Claude Code's April 14 2026 desktop redesign added a Plan Mode panel with Approve/Reject flow, but no plugin/skill API is publicly documented for rendering plans into that panel. Tracked for a future release.
+- **No language variant consolidation.** Issue #130 (consolidate into a single skill with locale parameter) is a separate breaking change and is not bundled into this release. The five locale-specific variants continue to ship.
+
 ## [2.37.0] - 2026-05-05
 
 ### Security

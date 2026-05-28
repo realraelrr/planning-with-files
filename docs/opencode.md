@@ -6,22 +6,43 @@ planning-with-files works with OpenCode as a personal or project skill.
 
 ## Installation
 
-See [docs/installation.md](installation.md) for detailed installation instructions.
-
-### Quick Install (Global)
+### Quick Install (Global, recommended)
 
 ```bash
-mkdir -p ~/.config/opencode/skills
-cd ~/.config/opencode/skills
-git clone https://github.com/OthmanAdi/planning-with-files.git
+npx skills add OthmanAdi/planning-with-files --skill planning-with-files -g
 ```
+
+This installs the skill into `~/.config/opencode/skills/planning-with-files/SKILL.md` and makes it available to every OpenCode session.
 
 ### Quick Install (Project)
 
 ```bash
-mkdir -p .opencode/skills
-cd .opencode/skills
-git clone https://github.com/OthmanAdi/planning-with-files.git
+npx skills add OthmanAdi/planning-with-files --skill planning-with-files
+```
+
+This installs the skill into `.opencode/skills/planning-with-files/SKILL.md` inside the current project only.
+
+### Manual install (git clone)
+
+If you prefer a manual install, clone the repo into a scratch directory and copy
+the OpenCode-specific skill folder into OpenCode's skill location:
+
+**Global:**
+
+```bash
+git clone --depth 1 https://github.com/OthmanAdi/planning-with-files.git /tmp/pwf-repo
+mkdir -p ~/.config/opencode/skills/planning-with-files
+cp -r /tmp/pwf-repo/.opencode/skills/planning-with-files/* ~/.config/opencode/skills/planning-with-files/
+rm -rf /tmp/pwf-repo
+```
+
+**Project:**
+
+```bash
+git clone --depth 1 https://github.com/OthmanAdi/planning-with-files.git ./.opencode/pwf-scratch
+mkdir -p .opencode/skills/planning-with-files
+cp -r ./.opencode/pwf-scratch/.opencode/skills/planning-with-files/* .opencode/skills/planning-with-files/
+rm -rf ./.opencode/pwf-scratch
 ```
 
 ## Usage with Superpowers Plugin
@@ -37,7 +58,7 @@ Use the use_skill tool with skill_name: "planning-with-files"
 Manually read the skill file when starting complex tasks:
 
 ```bash
-cat ~/.config/opencode/skills/planning-with-files/planning-with-files/SKILL.md
+cat ~/.config/opencode/skills/planning-with-files/SKILL.md
 ```
 
 ## oh-my-opencode Compatibility
@@ -88,22 +109,20 @@ If the agent forgets the planning rules:
 The `session-catchup.py` script currently has limited support for OpenCode due to different session storage formats:
 
 - **Claude Code**: Uses `.jsonl` files at `~/.claude/projects/`
-- **OpenCode**: Uses `.json` files at `~/.local/share/opencode/storage/session/`
+- **OpenCode**: Uses the SQLite store at `${XDG_DATA_HOME:-~/.local/share}/opencode/opencode.db` (v2.38.0+)
 
-When you run `/clear` in OpenCode, session catchup will detect OpenCode and show a message. **Workaround**: Manually read `task_plan.md`, `progress.md`, and `findings.md` to catch up after clearing context.
-
-Full OpenCode session parsing support is planned for a future release.
+When you run `/clear` in OpenCode, session catchup will detect OpenCode and read the SQLite store. If the query fails, **workaround**: manually read `task_plan.md`, `progress.md`, and `findings.md` to catch up after clearing context.
 
 ## Verification
 
 **Global:**
 ```bash
-ls -la ~/.config/opencode/skills/planning-with-files/planning-with-files/SKILL.md
+ls -la ~/.config/opencode/skills/planning-with-files/SKILL.md
 ```
 
 **Project:**
 ```bash
-ls -la .opencode/skills/planning-with-files/planning-with-files/SKILL.md
+ls -la .opencode/skills/planning-with-files/SKILL.md
 ```
 
 ## Learn More

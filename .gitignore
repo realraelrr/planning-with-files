@@ -39,3 +39,24 @@ skill-submission-targets.txt
 *.tmp
 WIKI_HOME_PAGE.md
 DISCUSSION_2_CONTENT.md
+
+# Python bytecode (regenerated locally by pytest and script runs)
+__pycache__/
+*.pyc
+
+# Parallel planning runtime state (slug-mode plans, active-plan pointer, attestations)
+.planning/
+.plan-attestation
+
+# Git Bash crash dumps (Windows only, generated on unexpected shutdown)
+bash.exe.stackdump
+*.stackdump
+
+# plan-it HTML artifact
+plan.html
+
+# Personal Claude Code config (do not ship per-developer settings)
+CLAUDE.md
+
+# Node.js modules pulled into IDE adapters
+node_modules/

@@ -15,7 +15,7 @@ This integration includes both:
 
 The hook behavior reuses the same mature shell scripts as the Cursor integration, with a thin Codex adapter layer for the differences in hook protocol.
 
-> **Important:** Codex hooks require `codex_hooks = true` in `~/.codex/config.toml`.
+> **Important:** Codex hooks require `hooks = true` in `~/.codex/config.toml`. The older `codex_hooks = true` still works as a deprecated alias.
 
 ---
 
@@ -73,10 +73,10 @@ Ensure your `~/.codex/config.toml` contains:
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
 ```
 
-If you already have a `[features]` section, add `codex_hooks = true` under it instead of creating a duplicate section.
+If you already have a `[features]` section, add `hooks = true` under it instead of creating a duplicate section. `codex_hooks = true` is still accepted as a deprecated alias for users on older configs.
 
 ### Verification
 
@@ -146,10 +146,10 @@ With personal installation (`~/.codex/`):
 
 ### Hooks Not Running?
 
-1. Check that `codex_hooks = true` is present in `~/.codex/config.toml`
+1. Check that `hooks = true` (or the deprecated alias `codex_hooks = true`) is present in `~/.codex/config.toml`
 2. Verify `.codex/hooks.json` or `~/.codex/hooks.json` exists
 3. Restart Codex after adding or changing hooks
-4. Run `codex features list | rg '^codex_hooks\s'`
+4. Run `codex features list | rg '^(hooks|codex_hooks)\s'`
 
 ### Already Using Other Global Hooks?
 
